@@ -1,0 +1,50 @@
+{
+    "definitions": [
+        {
+            "variable": "Pz",
+            "vextype": "float",
+            "pfilter": "minmax min",
+            "comment": "Bitch, we deep!"
+        },
+
+        {
+            "variable": "N",
+            "vextype": "vector",
+            "pfilter": "minmax min"
+        },
+
+        {
+            "variable": "Render_Time",
+            "vextype": "float"
+        },
+        
+        {
+            "variable": "P",
+            "vextype": "vector",
+            "pfilter": "minmax min",
+            "lightexport": "per-light",
+            "lightexport_scope": "*",
+            "lightexport_select": "*"
+        },
+
+        {
+            "variable": "foo",
+            "vextype": "vector4",
+            "pfilter": "minmax min"
+        },
+
+        {
+            "variable": "indirect_something",
+            "vextype": "vector",
+            "pfilter": "minmax min",
+            "sfilter": "fullopacity"
+        },
+
+        {
+            "variable": "whatever",
+            "vextype": "vector",
+            "pfilter": "box -w 1"
+        }
+    ]
+}
+

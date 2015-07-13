@@ -9,12 +9,7 @@ from ht.sohohooks.aovs.aov import AOV, AOVGroup
 from ht.utils import convertFromUnicode
 
 
-
-
 import hou
-
-
-
 
 
 class AOVManager(object):
@@ -24,11 +19,26 @@ class AOVManager(object):
 
 	self._aovs = {}
 	self._groups = {}
+        self._interface = None
 
 
 	self._initAOVs()
 
+    def __repr__(self):
+        return "<AOVManager>"
 
+
+    @property
+    def interface(self):
+        return self._interface
+
+    def initInterface(self):
+        import ht.sohohooks.aovs.viewer
+        self._interface = ht.sohohooks.aovs.viewer.AOVViewerInterface()
+
+
+    # TODO: Why is this a list of values?
+    # Why is _aovs a dict???
     @property
     def aovs(self):
 	return sorted(self._aovs.values())
@@ -57,7 +67,8 @@ class AOVManager(object):
 
 		aov = AOV(definition)
 
-		self._aovs[variable] = aov
+                self.addAOV(aov)
+#		self._aovs[variable] = aov
 
 
     def _createGroups(self, all_data):
@@ -80,7 +91,8 @@ class AOVManager(object):
 			if include_name in self._aovs:
 			    group.aovs.append(self._aovs[include_name])
 
-                self.groups[name] = group
+#                self.groups[name] = group
+                self.addGroup(group)
 
 
     def _loadDataFromFiles(self):
@@ -98,6 +110,18 @@ class AOVManager(object):
 	return data
 
 
+    def addAOV(self, aov):
+        self._aovs[aov.variable] = aov
+
+        if self.interface is not None:
+            self.interface.aovAddedSignal.emit(aov)
+
+
+    def addGroup(self, group):
+        self.groups[group.name] = group
+
+        if self.interface is not None:
+            self.interface.groupAddedSignal.emit(group)
 
 
     def clear(self):
@@ -122,8 +146,6 @@ class AOVManager(object):
 
 
 
-
-
     def getAOVsFromString(self, aov_str):
         aovs = []
 
@@ -137,8 +159,8 @@ class AOVManager(object):
                     aovs.append(self.groups[name])
 
             else:
-                if name in self.aovs:
-                    aovs.append(self.aovs[name])
+                if name in self._aovs:
+                    aovs.append(self._aovs[name])
 
         # TODO: Flatten?
 
@@ -152,38 +174,24 @@ class AOVManager(object):
             return
 
         # The parameter that defines which automatic aovs to add.
-        parms = {"auto_aovs": soho.SohoParm("auto_aovs", "str", [""])}
+        parms = {
+            "auto_aovs": soho.SohoParm("auto_aovs", "str", [""]),
+            "disable": soho.SohoParm("disable_auto_aovs", "int", [False])
+        }
 
         # Attempt to evaluate the parameter.
         plist = cam.wrangle(wrangler, parms, now)
 
         if plist:
+            if plist["disable"].Value[0] == 1:
+                return
+
             aov_str = plist["auto_aovs"].Value[0]
 
             aov_list = aov_str.split()
 
 
 
-
-
-
-
-def _disableAOVs(wrangler, cam, now):
-    import soho
-
-    # The parameter that defines if planes should be disabled or not.
-    parms = {"disable": soho.SohoParm("disable_auto_aovs", "int", [False])}
-
-    # Attempt to evaluate the parameter.
-    plist = cam.wrangle(wrangler, parms, now)
-
-    # Parameter exists.
-    if plist:
-        # If the parameter is set, return True to disable the aovs.
-        if plist["disable"].Value[0] == 1:
-            return True
-
-    return False
 
 
 
@@ -224,4 +232,35 @@ def findOrCreateSessionAOVManager():
         manager = createSessionAOVManager()
 
     return manager
+
+
+class AOVWriter(object):
+
+
+    def __init__(self):
+        self._data = {}
+
+    @property
+    def data(self):
+        return self._data
+
+
+    def addAOV(self, aov):
+        definitions = self.data.setdefault("definitions", [])
+
+        definitions.append(aov.data())
+
+    def addGroup(self, group):
+        groups = self.data.setdefault("groups", {})
+
+        groups.update(group.data())
+
+
+
+    def writeToFile(self, path):
+        with open(path, 'w') as f:
+            json.dump(self.data, f, indent=4)
+
+
+
 

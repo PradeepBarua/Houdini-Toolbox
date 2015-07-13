@@ -9,13 +9,15 @@ import json
 # =============================================================================
 
 # Allowable values for various settings.
-_ALLOWABLE_VALUES = {
+ALLOWABLE_VALUES = {
     "lightexport": ("per-category", "per-light", "single"),
     "quantization": ("8", "16", "half", "float"),
     "vextype": ("float", "vector", "vector4")
 }
 
 
+# TODO: add some sort of priority, so you can control how things are overriden
+# in the case of conflicts.
 
 class AOV(object):
 
@@ -24,6 +26,7 @@ class AOV(object):
 #	self._variable = data["variable"]
 
         self._channel = None
+        self._comment = ""
         self._lightexport = None
         self._lightexport_scope = "*"
         self._lightexport_select = "*"
@@ -44,9 +47,9 @@ class AOV(object):
                 continue
 
             # Check if there is a restriction on the data type.
-            if name in _ALLOWABLE_VALUES:
+            if name in ALLOWABLE_VALUES:
                 # Get the allowable types for this data.
-                allowable = _ALLOWABLE_VALUES[name]
+                allowable = ALLOWABLE_VALUES[name]
 
                 # If the value isn't in the list, raise an exception.
                 if value not in allowable:
@@ -95,6 +98,15 @@ class AOV(object):
     @channel.setter
     def channel(self, channel):
         self._channel = channel
+
+    @property
+    def comment(self):
+        """(str) Optional comment about this AOV."""
+        return self._comment
+
+    @comment.setter
+    def comment(self, comment):
+        self._comment = comment
 
 #    @property
 #    def conditionals(self):
@@ -210,6 +222,9 @@ class AOV(object):
             d["lightexport"] = self.lightexport
             d["lightexport_scope"] = self.lightexport_scope
             d["lightexport_select"] = self.lightexport_select
+
+        if self.comment is not None:
+            d["comment"] = self.comment
 
         return d
 
