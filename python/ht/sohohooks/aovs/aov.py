@@ -25,6 +25,8 @@ class AOV(object):
 
 #	self._variable = data["variable"]
 
+        self._componentexport = False
+        self._components = []
         self._channel = None
         self._comment = ""
         self._lightexport = None
@@ -33,8 +35,8 @@ class AOV(object):
 	self._path = None
         self._pfilter = None
         self._planefile = None
-        self._quantize = "half"
-        self._sfilter = "alpha"
+        self._quantize = None
+        self._sfilter = None
         self._variable = None
         self._vextype = None
 
@@ -60,12 +62,11 @@ class AOV(object):
             if hasattr(self, name):
                 setattr(self, name, value)
 
-
         if self.vextype is None:
             raise MissingVexTypeError(variable)
 
-        if self.channel is None:
-            self.channel = self.variable
+#        if self.channel is None:
+#            self.channel = self.variable
 
     # =========================================================================
     # SPECIAL METHODS
@@ -107,6 +108,22 @@ class AOV(object):
     @comment.setter
     def comment(self, comment):
         self._comment = comment
+
+    @property
+    def componentexport(self):
+        return self._componentexport
+
+    @componentexport.setter
+    def componentexport(self, componentexport):
+        self._componentexport = componentexport
+
+    @property
+    def components(self):
+        return self._components
+
+    @components.setter
+    def components(self, components):
+        self._components = components
 
 #    @property
 #    def conditionals(self):
@@ -206,19 +223,25 @@ class AOV(object):
     # =========================================================================
 
 
-    def data(self, include_export=True):
+    def data(self):
         d = {
             "variable": self.variable,
             "vextype": self.vextype,
-            "channel": self.channel,
-            "quantize": self.quantize,
-            "sfilter": self.sfilter,
         }
+
+        if self.channel is not None:
+            d["channel"] = self.variable
+
+        if self.quantize is not None:
+            d["quantize"] = self.quantize
+
+        if self.sfilter is not None:
+            d["sfilter"] = self.sfilter
 
         if self.pfilter is not None:
             d["pfilter"] = self.pfilter
 
-        if include_export and self.lightexport is not None:
+        if self.lightexport is not None:
             d["lightexport"] = self.lightexport
             d["lightexport_scope"] = self.lightexport_scope
             d["lightexport_select"] = self.lightexport_select
@@ -229,7 +252,7 @@ class AOV(object):
         return d
 
 
-    def writeDataToIfd(self, wrangler, cam, now):
+    def writeToIfd(self, wrangler, cam, now):
         """Output all necessary aovs.
 
         Args:
@@ -252,13 +275,32 @@ class AOV(object):
         import soho
 
         # The base data to pass along.
-        # TODO: Make sure this is okay with things happening later?
-        data = self.data(include_export=False)
+        data = self.data()
 
         # Apply any conditionals before the light export phase.
-        if self.conditionals:
-            for conditional in self.conditionals:
-                data.update(conditional.getData(wrangler, cam, now))
+#        if self.conditionals:
+#            for conditional in self.conditionals:
+#                data.update(conditional.getData(wrangler, cam, now))
+
+        channel = self.channel
+
+        if channel is None:
+            channel = self.variable
+
+        if self.componentexport:
+            for component in self.components:
+                data["channel"] = "{}_{}".format(channel, component)
+                data["component"] = component
+
+                self.lightExportPlanes(data, wrangler, cam, now)
+
+        else:
+            data["channel"] = channel
+
+            self.lightExportPlanes(data, wrangler, cam, now)
+
+    def lightExportPlanes(self, data, wrangler, cam, now):
+        base_channel = data["channel"]
 
         # Handle any light exporting.
         if self.lightexport is not None:
@@ -292,14 +334,14 @@ class AOV(object):
                     if prefix:
                         channel = "{0}_{1}{2}".format(
                             prefix[0],
-                            self.channel,
+                            base_channel,
                             suffix
                         )
 
                     # If not and there is a valid suffix, add it to the channel
                     # name.
                     elif suffix:
-                        channel = "{0}{1}".format(self.channel, suffix)
+                        channel = "{0}{1}".format(base_channel, suffix)
 
                     # Throw an error because all the per-light channels will
                     # have the same name.
@@ -375,7 +417,7 @@ class AOV(object):
 
                     # The channel is the regular channel named prefixed with
                     # the category name.
-                    data["channel"] = "{0}_{1}".format(category, self.channel)
+                    data["channel"] = "{0}_{1}".format(category, base_channel)
 
                     # Write the per-category light export to the ifd.
                     self.writeDataToIfd(data, wrangler, cam, now)
@@ -422,7 +464,9 @@ class AOV(object):
         IFDapi.ray_property("plane", "variable", [data["variable"]])
         IFDapi.ray_property("plane", "vextype", [data["vextype"]])
         IFDapi.ray_property("plane", "channel", [data["channel"]])
-        IFDapi.ray_property("plane", "quantize", [data["quantize"]])
+
+        if "quantize" in data:
+            IFDapi.ray_property("plane", "quantize", [data["quantize"]])
 
         # Optional aov information.
         if "planefile" in data:
@@ -439,15 +483,15 @@ class AOV(object):
         if "sfilter" in data:
             IFDapi.ray_property("plane", "sfilter", [data["sfilter"]])
 
+        if "component" in data:
+            IFDapi.ray_property("plane", "component", [data["component"]])
+
         # Call the 'post_defplane' hook.
         if _callPostDefPlane(data, wrangler, cam, now):
             return
 
         # End the plane definition block.
         IFDapi.ray_end()
-
-
-
 
 
 class AOVGroup(object):
@@ -619,6 +663,37 @@ class MissingVexTypeError(Exception):
         return "Cannot create aov {0}: missing 'vextype'.".format(
             self.vextype
         )
+
+
+def _callPostDefPlane(data, wrangler, cam, now):
+    import IFDhooks
+
+    return IFDhooks.call(
+        "post_defplane",
+        data["variable"],
+        data["vextype"],
+        -1,
+        wrangler,
+        cam,
+        now,
+        data.get("planefile"),
+        data.get("lightexport")
+    )
+
+def _callPreDefPlane(data, wrangler, cam, now):
+    import IFDhooks
+
+    return IFDhooks.call(
+        "pre_defplane",
+        data["variable"],
+        data["vextype"],
+        -1,
+        wrangler,
+        cam,
+        now,
+        data.get("planefile"),
+        data.get("lightexport")
+    )
 
 
 

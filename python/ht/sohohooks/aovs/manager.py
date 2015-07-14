@@ -139,12 +139,8 @@ class AOVManager(object):
 	self._createAOVs(data)
 	self._createGroups(data)
 
-
-
     def save(self):
 	pass
-
-
 
     def getAOVsFromString(self, aov_str):
         aovs = []
@@ -162,39 +158,35 @@ class AOVManager(object):
                 if name in self._aovs:
                     aovs.append(self._aovs[name])
 
-        # TODO: Flatten?
-
         return aovs
 
     @staticmethod
     def addAOVsToIfd(wrangler, cam, now):
         import soho
 
-        if _disableAOVs(wrangler, cam, now):
-            return
-
         # The parameter that defines which automatic aovs to add.
         parms = {
-            "auto_aovs": soho.SohoParm("auto_aovs", "str", [""]),
-            "disable": soho.SohoParm("disable_auto_aovs", "int", [False])
+            "auto_aovs": soho.SohoParm("auto_aovs", "str", [""], skipdefault=False),
+            "disable": soho.SohoParm("disable_auto_aovs", "int", [0], skipdefault=False)
         }
 
         # Attempt to evaluate the parameter.
         plist = cam.wrangle(wrangler, parms, now)
 
         if plist:
-            if plist["disable"].Value[0] == 1:
+            if plist["disable_auto_aovs"].Value[0] == 1:
                 return
 
             aov_str = plist["auto_aovs"].Value[0]
 
-            aov_list = aov_str.split()
+            manager = AOVManager()
 
+            # Parse the string to get any aovs/groups.
+            aovs = manager.getAOVsFromString(aov_str)
 
-
-
-
-
+            # Write any found items to the ifd.
+            for aov in aovs:
+                aov.writeToIfd(wrangler, cam, now)
 
 
 def _findAOVFiles():
