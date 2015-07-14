@@ -44,6 +44,15 @@
             "variable": "whatever",
             "vextype": "vector",
             "pfilter": "box -w 1"
+        },
+
+        {
+            "variable": "direct_comp",
+            "vextype": "vector",
+            "channel": "direct",
+            "lightexport": "per-light",
+            "componentexport": true,
+            "components": ["diffuse", "reflect"]
         }
     ]
 }
