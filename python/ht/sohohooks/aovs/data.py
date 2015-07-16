@@ -41,4 +41,10 @@ PFILTER_MENU_ITEMS = (
     ("Object With Most Pixel Coverage (no filtering)", "minmax idcover"),
 )
 
+LIGHTEXPORT_MENU_ITEMS = (
+    ("", "No light exports"),
+    ("per-category", "Export variable for each category"),
+    ("per-light", "Export variable for each light"),
+    ("single", "Merge all lights into single channel"),
+)
 

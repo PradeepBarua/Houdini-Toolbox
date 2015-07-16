@@ -24,7 +24,7 @@ _ROW_TITLES = (
     "Pixel Filter (pfilter)",
     "Light Exports (lightexport)",
     "Light Mask (lightexport_scope)",
-    "Light Selection (lightexport_select)"
+    "Light Selection (lightexport_select)",
 )
 
 
@@ -172,11 +172,28 @@ class AOVNode(AOVBaseNode):
         lines = [
             "VEX Variable: {0}".format(aov.variable),
             "VEX Type: {0}".format(aov.vextype),
-            "Channel Name: {0}".format(aov.channel),
-            "Quantize: {0}".format(aov.quantize),
-            "Sample Filter: {0}".format(aov.sfilter),
-            "Pixel Filter: {0}".format(aov.pfilter),
         ]
+
+        if aov.channel is not None:
+            lines.append("Channel Name: {0}".format(aov.channel))
+
+        if aov.quantize is not None:
+            lines.append("Quantize: {0}".format(aov.quantize))
+
+        if aov.sfilter is not None:
+            lines.append("Sample Filter: {0}".format(aov.sfilter))
+
+        if aov.pfilter is not None:
+            lines.append("Pixel Filter: {0}".format(aov.pfilter))
+
+        if aov.componentexport:
+            lines.append("\nExport variable for each component: {0}".format(aov.componentexport))
+            lines.append("Export Components: {0}".format(", ".join(aov.components)))
+
+        if aov.lightexport is not None:
+            lines.append("\nLight Exports: {0}".format(aov.lightexport))
+            lines.append("Light Mask: {0}".format(aov.lightexport_scope))
+            lines.append("Light Selection: {0}".format(aov.lightexport_select))
 
         if aov.comment:
             lines.append("\nComment: {0}".format(aov.comment))
@@ -577,4 +594,42 @@ class AOVsToAddModel(BaseAOVTreeModel):
 	self.endRemoveRows()
 
 	return True
+
+
+
+class AOVListModel(QtCore.QAbstractListModel):
+
+    def __init__(self, parent=None):
+	super(AOVListModel, self).__init__(parent)
+
+        manager = findOrCreateSessionAOVManager()
+        self._aovs = manager.aovs
+
+    @property
+    def aovs(self):
+        return self._aovs
+
+    def rowCount(self, parent):
+	return len(self.aovs)
+
+    def data(self, index, role):
+	row = index.row()
+	value = self.aovs[row]
+
+	if role == QtCore.Qt.DisplayRole:
+	    return value.variable
+
+        if role == QtCore.Qt.DecorationRole:
+	    dataType = value.vextype
+
+	    return QtGui.QIcon(
+		":ht/rsc/icons/sohohooks/aovs/{0}.png".format(dataType)
+	    )
+
+    def flags(self, index):
+	return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
+
+
+
+
 

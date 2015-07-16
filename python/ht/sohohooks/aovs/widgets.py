@@ -341,29 +341,31 @@ class AvailableAOVsToolBar(QtGui.QToolBar):
         self.addWidget(load_file_button)
 
         self.new_aov_dialog = ht.sohohooks.aovs.dialogs.NewAOVDialog()
+        self.new_group_dialog = ht.sohohooks.aovs.dialogs.NewAOVGroupDialog()
+
 
     def createNewAOV(self):
         self.new_aov_dialog.show()
 
 
     def createNewGroup(self):
-        pass
+        self.new_group_dialog.show()
 
     def loadJsonFile(self):
         import hou
-        b = hou.ui.curDesktop().createFloatingPane(
-            hou.paneTabType.HelpBrowser
-        )
+#        b = hou.ui.curDesktop().createFloatingPane(
+#            hou.paneTabType.HelpBrowser
+#        )
 
-        b.displayHelpPath("pypanel/aov_manager")
-#        manager = findOrCreateSessionAOVManager()
+#        b.displayHelpPath("pypanel/aov_manager")
+        manager = findOrCreateSessionAOVManager()
 
-#        path = hou.ui.selectFile()
+        path = hou.ui.selectFile()
 
-#        path = os.path.expandvars(path)
+        path = os.path.expandvars(path)
 
-#        if os.path.exists(path):
-#            manager.load(path)
+        if os.path.exists(path):
+            manager.load(path)
 
 
 class AOVSelectWidget(QtGui.QWidget):
@@ -418,6 +420,12 @@ class AOVSelectWidget(QtGui.QWidget):
 
         self.move.to_left.clicked.connect(self.emitRemoveSignal)
         self.move.to_right.clicked.connect(self.emitInstallSignal)
+
+        manager = findOrCreateSessionAOVManager()
+
+        self.toolbar.new_group_dialog.newAOVGroupSignal.connect(
+            manager.addGroup
+        )
 
     def getSelectedNodes(self):
         return self.tree.getSelectedNodes()
@@ -664,10 +672,10 @@ class AOVsToAddToolBar(QtGui.QToolBar):
         apply_action.setToolTip("Apply AOVs to selected nodes.")
 
 
-        apply_button = QtGui.QToolButton(self)
-        apply_button.setDefaultAction(apply_action)
+        self.apply_button = QtGui.QToolButton(self)
+        self.apply_button.setDefaultAction(apply_action)
 
-        self.addWidget(apply_button)
+        self.addWidget(self.apply_button)
 
         # Does this need to be attached to self?
         self.apply_menu = QtGui.QMenu(self)
@@ -698,8 +706,22 @@ class AOVsToAddToolBar(QtGui.QToolBar):
         self.apply_menu.addAction(action1)
         self.apply_menu.addAction(action2)
 
-        apply_button.setMenu(self.apply_menu)
+        self.apply_button.setMenu(self.apply_menu)
+        self.apply_button.setEnabled(False)
 
+        new_group_action = QtGui.QAction(
+            QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/create_group.png"),
+            "Create a new group from chosen AOVs.",
+            self,
+            triggered=self.createNewGroup
+        )
+
+        self.new_group_button = QtGui.QToolButton(self)
+        self.new_group_button.setDefaultAction(new_group_action)
+        self.new_group_button.setEnabled(False)
+        self.addWidget(self.new_group_button)
+
+        self.new_group_dialog = ht.sohohooks.aovs.dialogs.NewAOVGroupDialog()
 
 
         load_action = QtGui.QAction(
@@ -713,17 +735,6 @@ class AOVsToAddToolBar(QtGui.QToolBar):
         load_button.setDefaultAction(load_action)
         self.addWidget(load_button)
 
-
-        new_group_action = QtGui.QAction(
-            QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/create_group.png"),
-            "Create a new group from chosen AOVs.",
-            self,
-            triggered=self.createNewGroup
-        )
-
-        new_group_button = QtGui.QToolButton(self)
-        new_group_button.setDefaultAction(new_group_action)
-        self.addWidget(new_group_button)
 
 
     def loadFromNode(self):
@@ -745,7 +756,12 @@ class AOVsToAddToolBar(QtGui.QToolBar):
         self.installSignal.emit(items)
 
     def createNewGroup(self):
-        pass
+
+        self.new_group_dialog.setSelectedItems(
+            self.parent().tree.model().sourceModel().items
+        )
+
+        self.new_group_dialog.show()
 
     def setAsParameters(self):
         self._apply_as_parms = True
@@ -799,10 +815,25 @@ class AOVsToAddWidget(QtGui.QWidget):
         self.tree.model().sourceModel().rowsInserted.connect(self.dataUpdated)
         self.tree.model().sourceModel().rowsRemoved.connect(self.dataUpdated)
 
+        self.tree.model().sourceModel().rowsInserted.connect(self.dataUpdated)
+        self.tree.model().sourceModel().rowsRemoved.connect(self.dataUpdated)
+
+
+        manager = findOrCreateSessionAOVManager()
+
+        self.toolbar.new_group_dialog.newAOVGroupSignal.connect(
+            manager.addGroup
+        )
 
 
 
     def dataUpdated(self, index, start, end):
+        rows = self.tree.model().sourceModel().rowCount(QtCore.QModelIndex())
+
+        self.toolbar.apply_button.setEnabled(rows)
+        self.toolbar.new_group_button.setEnabled(rows)
+
+
         self.updateEnabledSignal.emit()
 
 
@@ -857,6 +888,23 @@ class AOVsToAddWidget(QtGui.QWidget):
                     return index
 
         return None
+
+
+class NewGroupAOVListWidget(QtGui.QListView):
+
+
+    def __init__(self, parent=None):
+        super(NewGroupAOVListWidget, self).__init__(parent)
+
+        self.setSelectionMode(QtGui.QAbstractItemView.MultiSelection)
+
+        model = models.AOVListModel()
+
+        self.setModel(model)
+
+        self.setAlternatingRowColors(True)
+
+
 
 def _findSelectedMantraNodes():
     import hou

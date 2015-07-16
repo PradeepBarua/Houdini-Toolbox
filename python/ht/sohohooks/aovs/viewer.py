@@ -17,6 +17,8 @@ from ht.sohohooks.aovs import aov, manager, models, widgets
 
 import ht.ui.icons
 
+import hou
+
 # =============================================================================
 # EXPORTS
 # =============================================================================
@@ -36,9 +38,32 @@ class AOVViewer(QtGui.QWidget):
     def __init__(self, parent=None):
         super(AOVViewer, self).__init__(parent)
 
+        self._interface_name = None
+
         self.manager = manager.findOrCreateSessionAOVManager()
 
         layout = QtGui.QVBoxLayout()
+
+#        blayout = QtGui.QHBoxLayout()
+#        blayout.addStretch()
+#        blayout.setContentsMargins(0, 0, 4, 0)
+
+#        button = QtGui.QPushButton(
+#            QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/help.png"),
+#            ""
+#        )
+
+#        button.setToolTip("Show help")
+
+#        button.setIconSize(QtCore.QSize(16, 16))
+#        button.setMaximumSize(QtCore.QSize(25, 25))
+#        button.setFlat(True)
+
+#        button.clicked.connect(self.displayHelp)
+
+#        blayout.addWidget(button)
+
+#        layout.addLayout(blayout)
 
         splitter = QtGui.QSplitter()
 
@@ -80,6 +105,14 @@ class AOVViewer(QtGui.QWidget):
             self.select_widget.tree.insertGroup
         )
 
+    @property
+    def interface_name(self):
+        return self._interface_name
+
+    @interface_name.setter
+    def interface_name(self, name):
+        self._interface_name = name
+
 
     # TODO: Dim out added nodes...
     def checkNodeAdded(self):
@@ -97,6 +130,15 @@ class AOVViewer(QtGui.QWidget):
 
         else:
             self.invalidAOVSelectedSignal.emit()
+
+
+    def displayHelp(self):
+        if self.interface_name is not None:
+            desktop = hou.ui.curDesktop()
+            browser = desktop.createFloatingPaneTab(hou.paneTabType.HelpBrowser)
+            browser.displayHelpPyPanel(self.interface_name)
+
+
 
 class AOVViewerInterface(QtCore.QObject):
 
