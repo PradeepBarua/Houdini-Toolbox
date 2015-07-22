@@ -30,7 +30,8 @@
         {
             "variable": "foo",
             "vextype": "vector4",
-            "pfilter": "minmax min"
+            "pfilter": "minmax min",
+            "channel": "thingers"
         },
 
         {

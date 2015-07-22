@@ -54,6 +54,7 @@ class AOVManager(object):
 	self._createGroups(all_data)
 
 
+    # TODO: Handle priority
     def _createAOVs(self, all_data):
 	for data in all_data:
 	    if "definitions" not in data:
@@ -65,14 +66,16 @@ class AOVManager(object):
 		if variable in self._aovs:
 		    continue
 
+                if "path" in data:
+                    definition["path"] = data["path"]
+
 		aov = AOV(definition)
 
                 self.addAOV(aov)
-#		self._aovs[variable] = aov
 
 
+    # TODO: Handle priority
     def _createGroups(self, all_data):
-
 	for data in all_data:
 	    if "groups" not in data:
 		continue
@@ -91,7 +94,12 @@ class AOVManager(object):
 			if include_name in self._aovs:
 			    group.aovs.append(self._aovs[include_name])
 
-#                self.groups[name] = group
+                if "comment" in group_data:
+                    group.comment = group_data["comment"]
+
+                if "path" in data:
+                    group.path = data["path"]
+
                 self.addGroup(group)
 
 
@@ -105,7 +113,7 @@ class AOVManager(object):
 	with open(path) as f:
 	    data = json.load(f, object_hook=convertFromUnicode)
 
-	data["filepath"] = path
+	data["path"] = path
 
 	return data
 
@@ -166,15 +174,15 @@ class AOVManager(object):
 
         # The parameter that defines which automatic aovs to add.
         parms = {
+            "enable": soho.SohoParm("enable_auto_aovs", "int", [1], skipdefault=False),
             "auto_aovs": soho.SohoParm("auto_aovs", "str", [""], skipdefault=False),
-            "disable": soho.SohoParm("disable_auto_aovs", "int", [0], skipdefault=False)
         }
 
         # Attempt to evaluate the parameter.
         plist = cam.wrangle(wrangler, parms, now)
 
         if plist:
-            if plist["disable_auto_aovs"].Value[0] == 1:
+            if plist["enable_auto_aovs"].Value[0] == 0:
                 return
 
             aov_str = plist["auto_aovs"].Value[0]
@@ -214,16 +222,34 @@ def createSessionAOVManager():
 
     return manager
 
-def findOrCreateSessionAOVManager():
+def findOrCreateSessionAOVManager(rebuild=False):
     manager = None
 
-    if hasattr(hou.session, "aov_manager"):
+    if hasattr(hou.session, "aov_manager") and not rebuild:
         manager = hou.session.aov_manager
 
     else:
         manager = createSessionAOVManager()
 
     return manager
+
+
+def buildMenuScript():
+    manager = findOrCreateSessionAOVManager()
+
+    menu = []
+
+    if manager.groups:
+        for group in sorted(manager.groups.keys()):
+            menu.extend(["@{0}".format(group), group])
+
+        menu.extend(["_separator_", "---------"])
+
+    for aov in manager.aovs:
+        menu.extend([aov.variable, aov.variable])
+
+    return menu
+
 
 
 class AOVWriter(object):

@@ -103,6 +103,9 @@ class TreeNode(object):
 
         return True
 
+    def tooltip(self):
+        return
+
 
 class FolderNode(TreeNode):
     def __init__(self, name, parent=None):
@@ -198,6 +201,12 @@ class AOVNode(AOVBaseNode):
         if aov.comment:
             lines.append("\nComment: {0}".format(aov.comment))
 
+        if aov.priority > -1:
+            lines.append("\nPriority: {0}".format(aov.priority))
+
+        if aov.path is not None:
+            lines.append("\n{0}".format(aov.path))
+
         return '\n'.join(lines)
 
 
@@ -213,8 +222,21 @@ class AOVGroupNode(AOVBaseNode):
     def group(self):
         return self.item
 
+    def tooltip(self):
+        group = self.group
 
+        lines = ["Name: {0}".format(group.name)]
 
+        if group.comment:
+            lines.append("\nComment: {0}".format(group.comment))
+
+        if group.priority > -1:
+            lines.append("\nPriority: {0}".format(group.priority))
+
+        if group.path is not None:
+            lines.append("\n{0}".format(group.path))
+
+        return '\n'.join(lines)
 
 # =============================================================================
 # PROXY MODELS
@@ -230,10 +252,6 @@ class LeafFilterProxyModel(QtGui.QSortFilterProxyModel):
 
         self.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
         self.setFilterRole(BaseAOVTreeModel.filterRole)
-
-
-#        self.setDynamicSortFilter(True)
-#        self.setSortRole(
 
     def filterAcceptsRow(self, row_num, source_parent):
 
@@ -298,7 +316,6 @@ class LeafFilterProxyModel(QtGui.QSortFilterProxyModel):
 class BaseAOVTreeModel(QtCore.QAbstractItemModel):
 
     filterRole = QtCore.Qt.UserRole
-    sortRole = QtCore.Qt.UserRole + 1
 
     def __init__(self, root, parent=None):
         super(BaseAOVTreeModel, self).__init__(parent)
@@ -366,16 +383,21 @@ class BaseAOVTreeModel(QtCore.QAbstractItemModel):
         parent = node.parent
 
         if role == QtCore.Qt.DisplayRole or role == QtCore.Qt.EditRole:
+            # If the item is an AOV who has an explicit channel set
+            # then display the channel as well.
+            if isinstance(node, AOVNode):
+                aov = node.item
+
+                if aov.channel is not None:
+                    return "{0} ({1})".format(aov.variable, aov.channel)
+
             return  node.name
 
         if role == QtCore.Qt.DecorationRole:
             return node.icon
 
         if role == QtCore.Qt.ToolTipRole:
-            if isinstance(node, AOVNode):
-                return node.tooltip()
-
-            return None
+            return node.tooltip()
 
         if role == QtCore.Qt.ForegroundRole:
             brush = QtGui.QBrush()
@@ -402,7 +424,6 @@ class BaseAOVTreeModel(QtCore.QAbstractItemModel):
                 return node.name
 
             return True
-
 
 class AOVSelectModel(BaseAOVTreeModel):
 
@@ -605,9 +626,15 @@ class AOVListModel(QtCore.QAbstractListModel):
         manager = findOrCreateSessionAOVManager()
         self._aovs = manager.aovs
 
+        self._checked = [False] * len(self._aovs)
+
     @property
     def aovs(self):
         return self._aovs
+
+    def checkedAOVs(self):
+        return [aov for checked, aov in zip(self._checked, self.aovs)
+                if checked]
 
     def rowCount(self, parent):
 	return len(self.aovs)
@@ -626,8 +653,20 @@ class AOVListModel(QtCore.QAbstractListModel):
 		":ht/rsc/icons/sohohooks/aovs/{0}.png".format(dataType)
 	    )
 
+        if role == QtCore.Qt.CheckStateRole:
+            return self._checked[row]
+
+    def setData(self, index, value, role):
+        if role == QtCore.Qt.CheckStateRole:
+            row = index.row()
+
+            self._checked[row] = not self._checked[row]
+
+            self.dataChanged.emit(index, index)
+            return True
+
     def flags(self, index):
-	return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
+	return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsUserCheckable
 
 
 

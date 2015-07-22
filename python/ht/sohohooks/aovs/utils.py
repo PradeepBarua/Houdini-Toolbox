@@ -1,5 +1,5 @@
 
-from ht.sohohooks.aovs.aov import AOV, AOVGroup
+from ht.sohohooks.aovs.aov import AOV, AOVGroup, ALLOWABLE_VALUES
 
 import hou
 
@@ -24,18 +24,24 @@ def applyToNodeAsParms(node, aovs):
         node.parm("vm_variable_plane{0}".format(idx)).set(aov.variable)
         node.parm("vm_vextype_plane{0}".format(idx)).set(aov.vextype)
 
-        if aov.variable != aov.channel:
+        if aov.channel != aov.variable:
             node.parm("vm_channel_plane{0}".format(idx)).set(aov.channel)
 
         if aov.planefile is not None:
             node.parm("vm_usefile_plane{0}".format(idx)).set(True)
             node.parm("vm_filename_plane{0}".format(idx)).set(aov.planefile)
 
-        node.parm("vm_quantize_plane{0}".format(idx)).set(aov.quantize)
-        node.parm("vm_sfilter_plane{0}".format(idx)).set(aov.sfilter)
+        if aov.quantize is not None:
+            node.parm("vm_quantize_plane{0}".format(idx)).set(aov.quantize)
+
+        if aov.sfilter is not None:
+            node.parm("vm_sfilter_plane{0}".format(idx)).set(aov.sfilter)
 
         if aov.pfilter is not None:
             node.parm("vm_pfilter_plane{0}".format(idx)).set(aov.pfilter)
+
+        if aov.componentexport:
+            node.parm("vm_componentexport{0}".format(idx)).set(True)
 
         if aov.lightexport is not None:
             menu_idx = ALLOWABLE_VALUES["lightexport"].index(aov.lightexport)
@@ -43,6 +49,8 @@ def applyToNodeAsParms(node, aovs):
             node.parm("vm_lightexport_scope{0}".format(idx)).set(aov.lightexport_scope)
             node.parm("vm_lightexport_select{0}".format(idx)).set(aov.lightexport_select)
 
+
+# TODO: care about priority
 def flattenList(elements):
     aovs = set()
 
@@ -65,22 +73,43 @@ def applyElementsAsParms(elements, nodes):
 	applyToNodeAsParms(node, aovs)
 
 
-
-
-# TODO: Create disable toggle too?
-
 def applyElementsAsString(elements, nodes):
     value = listAsString(elements)
 
     for node in nodes:
 	if not node.parm("auto_aovs"):
+            ptg = node.parmTemplateGroup()
+
+            parm_template = hou.ToggleParmTemplate(
+                "enable_auto_aovs",
+                "Automatic AOVs",
+                1,
+                help="Enable automatically adding AOVs."
+            )
+
+            parm_template.hideLabel(True)
+            parm_template.setJoinWithNext(True)
+
+            ptg.append(parm_template)
+
+
 	    parm_template = hou.StringParmTemplate(
 		"auto_aovs",
 		"Automatic AOVs",
 		1,
+                item_generator_script="from ht.sohohooks.aovs import manager\n\nreturn manager.buildMenuScript()",
+                item_generator_script_language=hou.scriptLanguage.Python,
+                menu_type=hou.menuType.StringToggle,
+                help="Automatically add AOVs at IFD generation time."
 	    )
 
-	    node.addSpareParmTuple(parm_template)
+            parm_template.setConditional(
+                hou.parmCondType.DisableWhen,
+                "{ enable_auto_aovs == 0 }"
+            )
+
+            ptg.append(parm_template)
+            node.setParmTemplateGroup(ptg)
 
 	parm = node.parm("auto_aovs")
 	parm.set(value)

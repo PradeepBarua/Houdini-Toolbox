@@ -23,8 +23,6 @@ class AOV(object):
 
     def __init__(self, data):
 
-#	self._variable = data["variable"]
-
         self._componentexport = False
         self._components = []
         self._channel = None
@@ -35,6 +33,7 @@ class AOV(object):
 	self._path = None
         self._pfilter = None
         self._planefile = None
+        self._priority = -1
         self._quantize = None
         self._sfilter = None
         self._variable = None
@@ -62,11 +61,11 @@ class AOV(object):
             if hasattr(self, name):
                 setattr(self, name, value)
 
+        if self.variable is None:
+            raise MissingVariableError(variable)
+
         if self.vextype is None:
             raise MissingVexTypeError(variable)
-
-#        if self.channel is None:
-#            self.channel = self.variable
 
     # =========================================================================
     # SPECIAL METHODS
@@ -130,15 +129,6 @@ class AOV(object):
 #        """([RenderConditional]) RenderConditional objects for the aov."""
 #        return self._conditionals
 
-#    @property
-#    def filePath(self):
-#        """(str) The path containing the aov definition."""
-#        return self._filePath
-
-#    @filePath.setter
-#    def filePath(self, filePath):
-#        self._filePath = filePath
-
     @property
     def lightexport(self):
         """(str) The light output mode."""
@@ -167,6 +157,15 @@ class AOV(object):
         self._lightexport_select = lightexport_select
 
     @property
+    def path(self):
+        """(str) The path containing the aov definition."""
+        return self._path
+
+    @path.setter
+    def path(self, path):
+        self._path = path
+
+    @property
     def pfilter(self):
         """(str) The name of the output aov's pixel filter."""
         return self._pfilter
@@ -183,6 +182,14 @@ class AOV(object):
     @planefile.setter
     def planefile(self, planefile):
         self._planefile = planefile
+
+    @property
+    def priority(self):
+        return self._priority
+
+    @priority.setter
+    def priority(self, priority):
+        self._priority = priority
 
     @property
     def quantize(self):
@@ -241,6 +248,9 @@ class AOV(object):
         if self.pfilter is not None:
             d["pfilter"] = self.pfilter
 
+        if self.componentexport is not None:
+            d["componentexport"] = self.componentexport
+
         if self.lightexport is not None:
             d["lightexport"] = self.lightexport
             d["lightexport_scope"] = self.lightexport_scope
@@ -248,6 +258,9 @@ class AOV(object):
 
         if self.comment is not None:
             d["comment"] = self.comment
+
+        if self.priority > -1:
+            d["priority"] = self.priority
 
         return d
 
@@ -520,9 +533,11 @@ class AOVGroup(object):
             N/A
 
         """
+        self._aovs = []
+        self._comment = ""
         self._name = name
         self._path = None
-        self._aovs = []
+        self._priority = -1
 
     # =========================================================================
     # SPECIAL METHODS
@@ -543,7 +558,6 @@ class AOVGroup(object):
 
         return -1
 
-
     # =========================================================================
     # INSTANCE PROPERTIES
     # =========================================================================
@@ -552,6 +566,15 @@ class AOVGroup(object):
     def aovs(self):
         """([AOV]) A list of AOVs in the group."""
         return self._aovs
+
+    @property
+    def comment(self):
+        """(str) Optional comment about this AOV."""
+        return self._comment
+
+    @comment.setter
+    def comment(self, comment):
+        self._comment = comment
 
     @property
     def path(self):
@@ -567,16 +590,30 @@ class AOVGroup(object):
         """(str) The name of the group."""
         return self._name
 
+    @property
+    def priority(self):
+        return self._priority
+
+    @priority.setter
+    def priority(self, priority):
+        self._priority = priority
+
     # =========================================================================
     # PUBLIC FUNCTIONS
     # =========================================================================
 
+    def clear(self):
+        self.aovs[:] = []
+
     def data(self):
         d = {
             self.name: {
-                "include": [aov.variable for aov in self.aovs]
+                "include": [aov.variable for aov in self.aovs],
             }
         }
+
+        if self.comment:
+            d[self.name]["comment"] = self.comment
 
         return d
 
@@ -647,8 +684,6 @@ class MissingVariable(Exception):
         return "Cannot create aov {0}: missing 'variable'.".format(
             self.variable
         )
-
-
 
 class MissingVexTypeError(Exception):
     """Exception for missing 'vextype' information.

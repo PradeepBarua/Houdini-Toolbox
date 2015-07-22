@@ -9,17 +9,25 @@ from ht.sohohooks.aovs import aov, data, manager, widgets, utils
 import hou
 
 
+class DialogOperation:
+    New = 1
+    Edit = 2
+
+
 class NewAOVGroupDialog(QtGui.QDialog):
 
     validInputSignal = QtCore.Signal(bool)
     newAOVGroupSignal = QtCore.Signal(aov.AOVGroup)
 
-    def __init__(self, parent=None):
+    def __init__(self, operation, parent=None):
         super(NewAOVGroupDialog, self).__init__(parent)
+
+        self._operation = operation
+        self._operation = DialogOperation.Edit
 
         self.setStyleSheet(hou.ui.qtStyleSheet())
 
-	self._variable_name_valid = False
+	self._group_name_valid = False
 	self._file_valid = False
 
 	layout = QtGui.QVBoxLayout()
@@ -33,10 +41,12 @@ class NewAOVGroupDialog(QtGui.QDialog):
 	self.resize(450, 475)
 
 	self.setMinimumWidth(450)
-#	self.setFixedHeight(275)
 
 
-	self.setWindowTitle("Create AOV Group")
+        if self._operation == DialogOperation.New:
+            self.setWindowTitle("Create AOV Group")
+        else:
+            self.setWindowTitle("Edit AOV Group")
 
 	self.setWindowIcon(
 	    QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/create_group.png")
@@ -51,11 +61,24 @@ class NewAOVGroupDialog(QtGui.QDialog):
 
 	layout.addWidget(self._buttonBox)
 
-	self._enableCreation(False)
+        if self._operation == DialogOperation.New:
+            self._enableCreation(False)
+            self.validInputSignal.connect(self._enableCreation)
 
-	self.validInputSignal.connect(self._enableCreation)
+        else:
+            self._enableCreation(True)
 
         self.setLayout(layout)
+
+        self.init_from_group(manager.findOrCreateSessionAOVManager().groups['default'])
+
+    def init_from_group(self, group):
+        self._group = group
+
+        self.group_name.setText(group.name)
+        self.file_path.setText(group.path)
+
+        self.setSelectedItems(group.aovs)
 
     def init_ui(self):
 	widget = QtGui.QWidget()
@@ -71,6 +94,9 @@ class NewAOVGroupDialog(QtGui.QDialog):
 	grid_layout.addWidget(self.group_name, 1, 1)
 
 	self.group_name.setFocus()
+
+        if self._operation == DialogOperation.Edit:
+            self.group_name.setEnabled(False)
 
 	self.group_name.textChanged.connect(self.validateGroupName)
 
@@ -103,6 +129,9 @@ class NewAOVGroupDialog(QtGui.QDialog):
 
 	file_widget.setLayout(file_layout)
 
+        if self._operation == DialogOperation.Edit:
+            self.file_path.setEnabled(False)
+            file_button.setEnabled(False)
 
 	self.file_path.textChanged.connect(self.validateFilePath)
 
@@ -112,10 +141,21 @@ class NewAOVGroupDialog(QtGui.QDialog):
 
 	# =====================================================================
 
-
         self.list = widgets.NewGroupAOVListWidget(self)
 
         layout.addWidget(self.list)
+
+
+	# =====================================================================
+
+        self.filter = widgets.AOVFilterWidget()
+        layout.addWidget(self.filter)
+
+        QtCore.QObject.connect(
+            self.filter.field,
+           QtCore.SIGNAL("textChanged(QString)"),
+            self.list.proxy_model.setFilterWildcard
+        )
 
 	# =====================================================================
 
@@ -209,6 +249,8 @@ class NewAOVGroupDialog(QtGui.QDialog):
             elif group_name in mgr.groups:
 		self._group_name_valid = False
                 msg = "Group already exists"
+        else:
+            self._group_name_valid = False
 
 	if not self._group_name_valid:
 	    self.setError(msg)
@@ -256,38 +298,49 @@ class NewAOVGroupDialog(QtGui.QDialog):
     def _enableCreation(self, enable):
 	self._buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(enable)
 
-
     def setSelectedItems(self, items):
         model = self.list.model()
-        model_items = model.aovs
 
-        sel_model = self.list.selectionModel()
+        source_model = model.sourceModel()
+
+        model_items = source_model.aovs
 
         items = utils.flattenList(items)
 
         for item in items:
             try:
-                index = model_items.index(item)
+                index = source_model.aovs.index(item)
 
             except ValueError:
                 continue
 
-            sel_model.select(model.index(index), sel_model.Select)
+            source_model._checked[index] = True
 
     def accept(self):
         group_name = self.group_name.text()
         file_path = self.file_path.text()
 
-        new_group = aov.AOVGroup(group_name)
+        if self._operation == DialogOperation.Edit:
+            new_group = self._group
+            new_group.clear()
+        else:
+            new_group = aov.AOVGroup(group_name)
 
-        indexes = self.list.selectionModel().selectedIndexes()
+        aovs = self.list.model().sourceModel().checkedAOVs()
 
-        for index in indexes:
-            new_group.aovs.append(self.list.model().aovs[index.row()])
+        # TODO: Disable OK button if no items selected
+        if not aovs:
+            hou.ui.displayMessage(
+                "No AOVs were selected.",
+                severity=hou.severityType.Error
+            )
 
+        else:
+            new_group.aovs.extend(aovs)
 
+            if self._operation == DialogOperation.New:
+                self.newAOVGroupSignal.emit(new_group)
 
-        self.newAOVGroupSignal.emit(new_group)
 	return super(NewAOVGroupDialog, self).accept()
 
 class NewAOVDialog(QtGui.QDialog):
@@ -295,15 +348,15 @@ class NewAOVDialog(QtGui.QDialog):
     validInputSignal = QtCore.Signal(bool)
     newAOVSignal = QtCore.Signal(aov.AOV)
 
-    def __init__(self, parent=None):
+    def __init__(self, operation, parent=None):
 	super(NewAOVDialog, self).__init__(parent)
+
+        self._operation = operation
 
         self.setStyleSheet(hou.ui.qtStyleSheet())
 
 	self._variable_valid = False
 	self._file_valid = False
-
-#	self.setModal(False)
 
 	layout = QtGui.QVBoxLayout()
 
@@ -311,13 +364,16 @@ class NewAOVDialog(QtGui.QDialog):
 
 	layout.addWidget(self.widget)
 
-	self.resize(450, 500)
+	self.resize(450, 525)
 
 	self.setMinimumWidth(450)
-	self.setFixedHeight(500)
+	self.setFixedHeight(525)
 
 
-	self.setWindowTitle("Create AOV")
+        if self._operation == DialogOperation.New:
+            self.setWindowTitle("Create AOV")
+        else:
+            self.setWindowTitle("Edit AOV")
 
 	self.setWindowIcon(
 	    QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/create_aov.png")
@@ -423,11 +479,30 @@ class NewAOVDialog(QtGui.QDialog):
 	pfilter_layout.addWidget(self.pfilter_name)
 
 	pfilter_button = QtGui.QPushButton(
-#	    QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/flyout_menu.png"),
 	)
 
-	pfilter_button.setIconSize(QtCore.QSize(16, 16))
-	pfilter_button.setMaximumSize(QtCore.QSize(24, 24))
+        pfilter_button.setStyleSheet(
+"""
+QPushButton
+{
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                stop: 0.0 rgb(63, 63, 63),
+                                stop: 1.0 rgb(38, 38, 38));
+
+    height: 14px;
+    width: 11px;
+    border: 1px solid rgba(0,0,0,102);
+
+}
+QPushButton::menu-indicator
+{
+    subcontrol-position: center;
+    height: 16;
+    width: 6;
+}
+
+"""
+)
 
 	pfilter_menu = QtGui.QMenu(pfilter_button)
 
@@ -536,15 +611,70 @@ class NewAOVDialog(QtGui.QDialog):
 
 	# =====================================================================
 
-	grid_layout.addWidget(QtGui.QLabel("Comment"), 15, 0)
+        grid_layout.addWidget(QtGui.QLabel("Priority"), 15, 0)
 
-	self.comment = QtGui.QLineEdit()
-	self.comment.setToolTip(
-	    "Optional comment, eg. 'This AOV represents X'."
-	)
+        self.priority = QtGui.QSpinBox()
+        self.priority.setMinimum(-1)
+        self.priority.setValue(-1)
 
-	grid_layout.addWidget(self.comment, 15, 1)
+        self.priority.setStyleSheet(
+"""
 
+QSpinBox {
+     border: 1px solid rgba(0,0,0,102);
+     border-radius: 1px;
+
+     background: rgb(19, 19, 19);
+
+     selection-color: rgb(0, 0, 0);
+     selection-background-color: rgb(184, 134, 32);
+ }
+
+ QSpinBox::up-button {
+     subcontrol-origin: border;
+     subcontrol-position: top right; /* position at the top right corner */
+
+     width: 16px; /* 16 + 2*1px border-width = 15px padding + 3px parent border */
+     border-width: 1px;
+
+    background: rgb(38, 38, 38);
+
+    width: 20px;
+ }
+
+ QSpinBox::down-button {
+     subcontrol-origin: border;
+     subcontrol-position: bottom right; /* position at bottom right corner */
+
+     width: 16px;
+     border-image: url(:/images/spindown.png) 1;
+     border-width: 1px;
+     border-top-width: 0;
+
+    background: rgb(38, 38, 38);
+    width: 20px;
+ }
+
+ QSpinBox::up-arrow
+ {
+    image: url(:ht/rsc/icons/sohohooks/aovs/button_up.png) 1;
+    width: 14px;
+    height: 14px;
+ }
+
+ QSpinBox::down-arrow
+ {
+    image: url(:ht/rsc/icons/sohohooks/aovs/button_down.png) 1;
+    width: 14px;
+    height: 14px;
+
+ }
+
+
+"""
+        )
+
+        grid_layout.addWidget(self.priority, 15, 1)
 
 	# =====================================================================
 
@@ -552,7 +682,23 @@ class NewAOVDialog(QtGui.QDialog):
 
 	# =====================================================================
 
-	grid_layout.addWidget(QtGui.QLabel("File Path"), 17, 0)
+	grid_layout.addWidget(QtGui.QLabel("Comment"), 17, 0)
+
+	self.comment = QtGui.QLineEdit()
+	self.comment.setToolTip(
+	    "Optional comment, eg. 'This AOV represents X'."
+	)
+
+	grid_layout.addWidget(self.comment, 17, 1)
+
+
+	# =====================================================================
+
+	grid_layout.setRowMinimumHeight(18, 25)
+
+	# =====================================================================
+
+	grid_layout.addWidget(QtGui.QLabel("File Path"), 19, 0)
 
 
 	file_widget = QtGui.QWidget()
@@ -582,7 +728,7 @@ class NewAOVDialog(QtGui.QDialog):
 
 	self.file_path.textChanged.connect(self.validateFilePath)
 
-	grid_layout.addWidget(file_widget, 17, 1)
+	grid_layout.addWidget(file_widget, 19, 1)
 
 
 	# =====================================================================
