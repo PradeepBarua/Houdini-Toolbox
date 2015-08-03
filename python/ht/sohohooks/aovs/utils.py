@@ -1,4 +1,6 @@
 
+from PySide import QtCore, QtGui
+
 from ht.sohohooks.aovs.aov import AOV, AOVGroup, ALLOWABLE_VALUES
 
 import hou
@@ -24,7 +26,7 @@ def applyToNodeAsParms(node, aovs):
         node.parm("vm_variable_plane{0}".format(idx)).set(aov.variable)
         node.parm("vm_vextype_plane{0}".format(idx)).set(aov.vextype)
 
-        if aov.channel != aov.variable:
+        if aov.channel is not None and aov.channel != aov.variable:
             node.parm("vm_channel_plane{0}".format(idx)).set(aov.channel)
 
         if aov.planefile is not None:
@@ -40,6 +42,7 @@ def applyToNodeAsParms(node, aovs):
         if aov.pfilter is not None:
             node.parm("vm_pfilter_plane{0}".format(idx)).set(aov.pfilter)
 
+        # TODO: How to handle varying components?
         if aov.componentexport:
             node.parm("vm_componentexport{0}".format(idx)).set(True)
 
@@ -115,4 +118,17 @@ def applyElementsAsString(elements, nodes):
 	parm.set(value)
 
 
+
+def getIconFromVexType(vextype):
+    return QtGui.QIcon(
+        ":ht/rsc/icons/sohohooks/aovs/{0}.png".format(
+            vextype
+        )
+    )
+
+def getIconFromGroup(group):
+    if group.icon is not None:
+        return QtGui.QIcon(group.icon)
+
+    return QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/group.png")
 

@@ -13,6 +13,8 @@ from ht.sohohooks.aovs.manager import findOrCreateSessionAOVManager
 
 import ht.sohohooks.aovs.dialogs
 
+import hou
+
 #TODO: mapfromsource usage?
 
 
@@ -48,7 +50,34 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
 
         self.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
 
+        model = models.AOVSelectModel(self.root)
+        self.proxy_model = models.LeafFilterProxyModel()
+        self.proxy_model.setSourceModel(model)
+        self.setModel(self.proxy_model)
+
+        self.setAlternatingRowColors(True)
+        self.setHeaderHidden(True)
+        self.setDragEnabled(True)
+
+        QtCore.QObject.connect(
+            self.selectionModel(),
+            QtCore.SIGNAL("selectionChanged(QItemSelection, QItemSelection)"),
+            self.selectionChange
+        )
+
+        self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.openMenu)
+
+        self.initFromManager()
+
+    def initFromManager(self):
+        self.root.removeAllChildren()
+
         manager = findOrCreateSessionAOVManager()
+        manager.reload()
+
+        model = self.proxy_model.sourceModel()
+        model.beginResetModel()
 
         if manager.groups:
             groups_node = models.FolderNode("Groups", self.root)
@@ -69,27 +98,9 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
             for aov in aovs:
                 models.AOVNode(aov, aovs_node)
 
-        model = models.AOVSelectModel(self.root)
-        self.proxy_model = models.LeafFilterProxyModel()
-        self.proxy_model.setSourceModel(model)
-        self.setModel(self.proxy_model)
-
-        self.setAlternatingRowColors(True)
-        self.setHeaderHidden(True)
-        self.setDragEnabled(True)
+        model.endResetModel()
 
         self.expandAll()
-
-
-        QtCore.QObject.connect(
-            self.selectionModel(),
-            QtCore.SIGNAL("selectionChanged(QItemSelection, QItemSelection)"),
-            self.selectionChange
-        )
-
-
-        self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        self.customContextMenuRequested.connect(self.openMenu)
 
     def insertAOV(self, aov):
         self.model().sourceModel().insertAOV(aov)
@@ -115,23 +126,33 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
         return nodes
 
     def openMenu(self, position):
-        indices = self.selectedIndexes()
+        indexes = self.selectedIndexes()
 
         menu = QtGui.QMenu(self)
 
-
         show_expand = False
         show_collapse = False
+        show_exp_col_all = False
 
-        for idx in indices:
+        show_info = False
+
+        for idx in indexes:
             src_idx = self.model().mapToSource(idx)
             node = src_idx.internalPointer()
 
-            if isinstance(node, models.AOVGroupNode):
+            if isinstance(node, (models.AOVGroupNode, models.FolderNode)):
+                show_exp_col_all = True
+
                 if self.isExpanded(idx):
                     show_collapse = True
                 else:
                     show_expand = True
+
+            if isinstance(node, models.AOVNode):
+                show_info = True
+
+            if isinstance(node, models.AOVGroupNode):
+                show_info = True
 
         if show_collapse:
             menu.addAction(
@@ -147,17 +168,18 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
                 QtGui.QKeySequence(QtCore.Qt.Key_Right)
             )
 
-        menu.addAction(
-            "Collapse All",
-            self.collapseBelow
-        )
+        if show_exp_col_all:
+            menu.addAction(
+                "Collapse All",
+                self.collapseBelow
+            )
 
-        menu.addAction(
-            "Expand All",
-            self.expandBelow
-        )
+            menu.addAction(
+                "Expand All",
+                self.expandBelow
+            )
 
-        menu.addSeparator()
+            menu.addSeparator()
 
         menu.addAction(
             "Select All",
@@ -167,10 +189,19 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
 
         menu.addSeparator()
 
+        if show_info:
+            menu.addAction(
+                "Info",
+                self.showInfo,
+                QtGui.QKeySequence(QtCore.Qt.Key_I),
+            )
+
+            menu.addSeparator()
+
         menu.addAction(
             "Install",
             self.installSelected,
-            QtGui.QKeySequence(QtCore.Qt.Key_I),
+            QtGui.QKeySequence(QtCore.Qt.Key_Y),
         )
 
         menu.addAction(
@@ -227,7 +258,6 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
                 idx = self.model().index(i, 0, index)
                 self._expandIndex(idx)
 
-
     def expandBelow(self):
         indexes = self.selectedIndexes()
 
@@ -248,6 +278,38 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
         for index in indexes:
             self._collapseIndex(index)
 
+    def showInfo(self):
+        indexes = self.selectedIndexes()
+
+        nodes = self.getSelectedNodes()
+
+        filtered = [node for node in nodes
+                    if isinstance(node, models.AOVNode)]
+
+        for node in filtered:
+            active = QtGui.QApplication.instance().activeWindow()
+
+            info_dialog = ht.sohohooks.aovs.dialogs.AOVInfoDialog(
+                node.aov,
+                active
+            )
+
+            info_dialog.show()
+
+        filtered = [node for node in nodes
+                    if isinstance(node, models.AOVGroupNode)]
+
+        for node in filtered:
+            active = QtGui.QApplication.instance().activeWindow()
+
+            info_dialog = ht.sohohooks.aovs.dialogs.AOVGroupInfoDialog(
+                node.group,
+                active
+            )
+
+            info_dialog.show()
+
+
     def installSelected(self):
         nodes = self.getSelectedNodes()
 
@@ -264,13 +326,20 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
         key = event.key()
 
         if key == QtCore.Qt.Key_I:
+            self.showInfo()
+            return
+
+        elif key == QtCore.Qt.Key_Y:
             self.installSelected()
+            return
 
         elif key == QtCore.Qt.Key_U:
             self.uninstallSelected()
+            return
 
         elif key == QtCore.Qt.Key_E:
             self.editSelected()
+            return
 
         super(AOVSelectTreeWidget, self).keyPressEvent(event)
 
@@ -281,6 +350,22 @@ class AOVMoveWidget(QtGui.QWidget):
         super(AOVMoveWidget, self).__init__(parent)
 
         layout = QtGui.QVBoxLayout()
+
+
+        self.reload = QtGui.QPushButton("")
+        self.reload.setIcon(
+            QtGui.QIcon(
+                ":ht/rsc/icons/sohohooks/aovs/reload.png"
+            )
+        )
+        self.reload.setIconSize(QtCore.QSize(14, 14))
+        self.reload.setMaximumSize(QtCore.QSize(20, 20))
+        self.reload.setToolTip("Reload the AOV List")
+        self.reload.setFlat(True)
+
+
+        layout.addWidget(self.reload)
+
         layout.addStretch(1)
 
         self.to_right = QtGui.QPushButton("")
@@ -325,7 +410,6 @@ class AOVMoveWidget(QtGui.QWidget):
     def disableHandler(self):
         self.to_left.setEnabled(False)
         self.to_right.setEnabled(False)
-
 
 class AvailableAOVsToolBar(QtGui.QToolBar):
 
@@ -375,32 +459,38 @@ class AvailableAOVsToolBar(QtGui.QToolBar):
 
 
     def createNewAOV(self):
-        self.new_aov_dialog = ht.sohohooks.aovs.dialogs.NewAOVDialog(
-            ht.sohohooks.aovs.dialogs.DialogOperation.New
+        active = QtGui.QApplication.instance().activeWindow()
+
+        new_aov_dialog = ht.sohohooks.aovs.dialogs.NewAOVDialog(
+            ht.sohohooks.aovs.dialogs.DialogOperation.New,
+            active
         )
+
         manager = findOrCreateSessionAOVManager()
 
-        self.new_aov_dialog.newAOVSignal.connect(
+        new_aov_dialog.newAOVSignal.connect(
             manager.addAOV
         )
 
-        self.new_aov_dialog.show()
+        new_aov_dialog.show()
 #        self.new_aov_dialog.show()
 
 
     def createNewGroup(self):
-        self.new_group_dialog = ht.sohohooks.aovs.dialogs.NewAOVGroupDialog(
-            ht.sohohooks.aovs.dialogs.DialogOperation.New
+        active = QtGui.QApplication.instance().activeWindow()
+
+        new_group_dialog = ht.sohohooks.aovs.dialogs.NewAOVGroupDialog(
+            ht.sohohooks.aovs.dialogs.DialogOperation.New,
+            active
         )
 
         manager = findOrCreateSessionAOVManager()
 
-
-        self.new_group_dialog.newAOVGroupSignal.connect(
+        new_group_dialog.newAOVGroupSignal.connect(
             manager.addGroup
         )
 
-        self.new_group_dialog.show()
+        new_group_dialog.show()
 
     def loadJsonFile(self):
         import hou
@@ -423,6 +513,8 @@ class AOVSelectWidget(QtGui.QWidget):
 
     installSignal = QtCore.Signal(models.AOVBaseNode)
     removeSignal = QtCore.Signal(models.AOVBaseNode)
+
+    reloadSignal = QtCore.Signal()
 
     def __init__(self, parent=None):
         super(AOVSelectWidget, self).__init__(parent)
@@ -461,9 +553,10 @@ class AOVSelectWidget(QtGui.QWidget):
 
         self.setLayout(layout)
 
-
         self.move.to_left.clicked.connect(self.emitRemoveSignal)
         self.move.to_right.clicked.connect(self.emitInstallSignal)
+
+        self.move.reload.clicked.connect(self.emitReloadSignal)
 
 
     def getSelectedNodes(self):
@@ -481,14 +574,14 @@ class AOVSelectWidget(QtGui.QWidget):
         if nodes:# is not None:
             self.removeSignal.emit(nodes)
 
+    def emitReloadSignal(self):
+#        self.reloadSignal.emit()
+        self.tree.initFromManager()
 
 
 # =============================================================================
 # AOVS TO APPLY
 # =============================================================================
-
-
-
 
 
 class AOVsToAddTreeWidget(QtGui.QTreeView):
@@ -548,16 +641,22 @@ class AOVsToAddTreeWidget(QtGui.QTreeView):
 
 #        else:
 
-        return super(AOVsToAddTreeWidget, self).dropEvent(event)
+        result = super(AOVsToAddTreeWidget, self).dropEvent(event)
+
+        #TODO: Expand group if a group was dropped?
+
+        return result
 
     def keyPressEvent(self, event):
         key = event.key()
 
         if key == QtCore.Qt.Key_Delete:
             self.removeSelected()
+            return
 
         elif key == QtCore.Qt.Key_E:
             self.extractSelected()
+            return
 
         super(AOVsToAddTreeWidget, self).keyPressEvent(event)
 
@@ -604,7 +703,7 @@ class AOVsToAddTreeWidget(QtGui.QTreeView):
 
 
     def openMenu(self, position):
-        indices = self.selectedIndexes()
+        indexes = self.selectedIndexes()
 
         menu = QtGui.QMenu(self)
 
@@ -613,7 +712,7 @@ class AOVsToAddTreeWidget(QtGui.QTreeView):
         show_expand = False
         show_collapse = False
 
-        for idx in indices:
+        for idx in indexes:
             src_idx = self.model().mapToSource(idx)
             node = src_idx.internalPointer()
 
@@ -666,7 +765,7 @@ class AOVsToAddTreeWidget(QtGui.QTreeView):
 
         show_extract = False
 
-        for idx in indices:
+        for idx in indexes:
             idx = self.model().mapToSource(idx)
             node = idx.internalPointer()
 
@@ -798,22 +897,24 @@ class AOVsToAddToolBar(QtGui.QToolBar):
         self.installSignal.emit(items)
 
     def createNewGroup(self):
-        self.new_group_dialog = ht.sohohooks.aovs.dialogs.NewAOVGroupDialog(
-            ht.sohohooks.aovs.dialogs.DialogOperation.New
+        active = QtGui.QApplication.instance().activeWindow()
+
+        new_group_dialog = ht.sohohooks.aovs.dialogs.NewAOVGroupDialog(
+            ht.sohohooks.aovs.dialogs.DialogOperation.New,
+            active
         )
 
-
-        self.new_group_dialog.setSelectedItems(
+        new_group_dialog.setSelectedItems(
             self.parent().tree.model().sourceModel().items
         )
 
         manager = findOrCreateSessionAOVManager()
 
-        self.new_group_dialog.newAOVGroupSignal.connect(
+        new_group_dialog.newAOVGroupSignal.connect(
             manager.addGroup
         )
 
-        self.new_group_dialog.show()
+        new_group_dialog.show()
 
     def setAsParameters(self):
         self._apply_as_parms = True
@@ -932,7 +1033,7 @@ class NewGroupAOVListWidget(QtGui.QListView):
 
         self.setSelectionMode(QtGui.QAbstractItemView.MultiSelection)
 
-        model = models.AOVListModel()
+        model = models.AOVGroupEditListModel()
 
         self.proxy_model = QtGui.QSortFilterProxyModel()
 
@@ -940,6 +1041,253 @@ class NewGroupAOVListWidget(QtGui.QListView):
         self.setModel(self.proxy_model)
 
         self.setAlternatingRowColors(True)
+
+
+class GroupMemberListWidget(QtGui.QListView):
+
+    def __init__(self, group, parent=None):
+        super(GroupMemberListWidget, self).__init__(parent)
+
+        model = models.AOVMemberListModel()
+
+        self.setModel(model)
+
+        self.setAlternatingRowColors(True)
+
+        model.initDataFromGroup(group)
+
+
+class InfoTableView(QtGui.QTableView):
+
+    def __init__(self, parent=None):
+        super(InfoTableView, self).__init__(parent)
+
+        self.setAlternatingRowColors(True)
+        self.verticalHeader().setVisible(False)
+        self.setWordWrap(False)
+
+        h_header = self.horizontalHeader()
+        h_header.setVisible(False)
+        h_header.setStretchLastSection(True)
+        h_header.resizeSection(0, 250)
+
+    def contextMenuEvent(self, event):
+        index = self.indexAt(event.pos())
+
+        if not index.isValid():
+            return
+
+        row = index.row()
+        column = index.column()
+
+        menu = QtGui.QMenu(self)
+
+        copyAction = QtGui.QAction("Copy", self)
+        copyAction.setShortcut(
+            QtGui.QKeySequence(QtCore.Qt.CTRL + QtCore.Qt.Key_C)
+        )
+
+        menu.addAction(copyAction)
+
+        action = menu.exec_(event.globalPos())
+
+        if action == copyAction:
+            self.copyCell(index)
+
+    def copyCell(self, index):
+        result = self.model().data(index)
+
+        if result is not None:
+            clipboard = QtGui.QApplication.clipboard()
+            clipboard.setText(result)
+
+
+
+class AOVInfoTableView(InfoTableView):
+
+    def __init__(self, aov, parent=None):
+        super(AOVInfoTableView, self).__init__(parent)
+
+        model = models.AOVInfoModel()
+        model.initDataFromAOV(aov)
+        self.setModel(model)
+
+class AOVGroupInfoTableWidget(InfoTableView):
+
+    def __init__(self, group, parent=None):
+        super(AOVGroupInfoTableWidget, self).__init__(parent)
+
+        model = models.AOVGroupInfoModel()
+        model.initDataFromGroup(group)
+        self.setModel(model)
+
+
+
+
+
+
+
+
+
+
+
+
+
+class FileChooser(QtGui.QWidget):
+
+    def __init__(self, parent=None):
+        super(FileChooser, self).__init__(parent)
+
+	layout = QtGui.QHBoxLayout()
+	layout.setSpacing(0)
+	layout.setContentsMargins(0, 0, 0, 0)
+
+	self.field = QtGui.QLineEdit()
+	layout.addWidget(self.field)
+
+	self.button = QtGui.QPushButton(
+	    QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/chooser_file.png"),
+	    ""
+	)
+
+	self.button.setFlat(True)
+	self.button.setIconSize(QtCore.QSize(16, 16))
+	self.button.setMaximumSize(QtCore.QSize(24, 24))
+
+	self.button.clicked.connect(self.chooseFile)
+
+	layout.addWidget(self.button)
+
+	self.setLayout(layout)
+
+
+    def chooseFile(self):
+	current = self.field.text()
+
+	start_directory = None
+	default_value = None
+
+	if current:
+	    dirname = os.path.dirname(current)
+	    default_value = os.path.basename(current)
+
+	result = hou.ui.selectFile(
+	    start_directory=start_directory,
+	    pattern="*.json",
+	    default_value=default_value,
+	    chooser_mode=hou.fileChooserMode.Write
+	)
+
+	if not result:
+	    return
+
+	ext = os.path.splitext(result)[1]
+
+	if not ext:
+	    result = "{0}.json".format(result)
+
+	self.field.setText(result)
+
+    def enable(self, enable):
+        self.field.setEnabled(enable)
+        self.button.setEnabled(enable)
+
+    def getPath(self):
+        return self.field.text()
+
+    def setPath(self, path):
+        self.field.setText(path)
+
+
+class MenuFieldMode:
+    Replace = 0
+    Toggle = 1
+
+class MenuField(QtGui.QWidget):
+
+    def __init__(self, menu_items, mode=MenuFieldMode.Replace, parent=None):
+        super(MenuField, self).__init__(parent)
+
+        layout = QtGui.QHBoxLayout()
+
+        layout.setSpacing(1)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        self.field = QtGui.QLineEdit()
+        layout.addWidget(self.field)
+
+        button = QtGui.QPushButton()
+
+        button.setStyleSheet(
+"""
+QPushButton
+{
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                stop: 0.0 rgb(63, 63, 63),
+                                stop: 1.0 rgb(38, 38, 38));
+
+    height: 14px;
+    width: 11px;
+    border: 1px solid rgba(0,0,0,102);
+
+}
+
+QPushButton::menu-indicator
+{
+    subcontrol-position: center;
+    height: 16;
+    width: 6;
+}
+"""
+)
+        menu = QtGui.QMenu(button)
+
+        for item in menu_items:
+            label, value = item
+
+            action = menu.addAction(label)
+
+            if mode == MenuFieldMode.Replace:
+                action.triggered.connect(
+                    lambda value=value: self._replace(value)
+                )
+
+            elif mode == MenuFieldMode.Toggle:
+                action.triggered.connect(
+                    lambda value=value: self._toggle(value)
+                )
+
+        button.setMenu(menu)
+        layout.addWidget(button)
+
+        self.setLayout(layout)
+
+    def _replace(self, value):
+        self.field.setText(value)
+
+    def _toggle(self, value):
+        text = self.value()
+
+        if value in text:
+            text = text.replace(value, "")
+
+            self.field.setText(text.strip())
+
+        else:
+            if not text:
+                text = value
+
+            else:
+                text = "{0} {1}".format(text, value)
+
+            self.field.setText(text)
+
+
+    def value(self):
+        return self.field.text()
+
+
+
 
 
 

@@ -21,7 +21,6 @@ class AOVManager(object):
 	self._groups = {}
         self._interface = None
 
-
 	self._initAOVs()
 
     def __repr__(self):
@@ -96,6 +95,9 @@ class AOVManager(object):
 
                 if "comment" in group_data:
                     group.comment = group_data["comment"]
+
+                if "icon" in group_data:
+                    group.icon = os.path.expandvars(group_data["icon"])
 
                 if "path" in data:
                     group.path = data["path"]
@@ -197,6 +199,7 @@ class AOVManager(object):
                 aov.writeToIfd(wrangler, cam, now)
 
 
+# TODO: Use a custom scan path if available?
 def _findAOVFiles():
 
     try:
@@ -211,8 +214,6 @@ def _findAOVFiles():
 	all_files.extend(glob.glob(os.path.join(directory, "*.json")))
 
     return all_files
-
-
 
 
 

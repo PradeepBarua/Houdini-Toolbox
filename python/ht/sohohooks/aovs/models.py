@@ -12,6 +12,7 @@ import ht.ui.icons
 
 from ht.sohohooks.aovs.aov import AOV, AOVGroup
 from ht.sohohooks.aovs.manager import findOrCreateSessionAOVManager
+from ht.sohohooks.aovs import utils
 
 
 _ROW_TITLES = (
@@ -83,7 +84,6 @@ class TreeNode(object):
 
         child.parent = self
 
-
     def insertChild(self, position, child):
         if position < 0 or position > len(self.children):
             return False
@@ -92,6 +92,9 @@ class TreeNode(object):
         child.parent = self
 
         return True
+
+    def removeAllChildren(self):
+        self._children = []
 
     def removeChild(self, position):
         if position < 0 or position > len(self.children):
@@ -151,11 +154,7 @@ class AOVNode(AOVBaseNode):
 
     @property
     def icon(self):
-        return QtGui.QIcon(
-            ":ht/rsc/icons/sohohooks/aovs/{0}.png".format(
-                self.item.vextype
-            )
-        )
+        return utils.getIconFromVexType(self.item.vextype)
 
     @property
     def name(self):
@@ -216,7 +215,7 @@ class AOVGroupNode(AOVBaseNode):
 
     @property
     def icon(self):
-        return QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/group.png")
+        return utils.getIconFromGroup(self.group)
 
     @property
     def group(self):
@@ -232,6 +231,9 @@ class AOVGroupNode(AOVBaseNode):
 
         if group.priority > -1:
             lines.append("\nPriority: {0}".format(group.priority))
+
+        if group.icon is not None:
+            lines.append("\nIcon: {0}".format(group.icon))
 
         if group.path is not None:
             lines.append("\n{0}".format(group.path))
@@ -254,7 +256,6 @@ class LeafFilterProxyModel(QtGui.QSortFilterProxyModel):
         self.setFilterRole(BaseAOVTreeModel.filterRole)
 
     def filterAcceptsRow(self, row_num, source_parent):
-
         if self.filter_accepts_row_itself(row_num, source_parent):
             return True
 
@@ -263,8 +264,6 @@ class LeafFilterProxyModel(QtGui.QSortFilterProxyModel):
             return True
 
         return self.has_accepted_children(row_num, source_parent)
-
-
 
     def filter_accepts_row_itself(self, row_num, source_parent):
         return super(LeafFilterProxyModel, self).filterAcceptsRow(
@@ -567,6 +566,8 @@ class AOVsToAddModel(BaseAOVTreeModel):
 
         self.insertRows(pickle.loads(data.data("text/csv")))
 
+        print "need to expand?"
+
         return True
 
     def insertRows(self, data, position=None, parent=QtCore.QModelIndex()):
@@ -618,10 +619,10 @@ class AOVsToAddModel(BaseAOVTreeModel):
 
 
 
-class AOVListModel(QtCore.QAbstractListModel):
+class AOVGroupEditListModel(QtCore.QAbstractListModel):
 
     def __init__(self, parent=None):
-	super(AOVListModel, self).__init__(parent)
+	super(AOVGroupEditListModel, self).__init__(parent)
 
         manager = findOrCreateSessionAOVManager()
         self._aovs = manager.aovs
@@ -636,6 +637,10 @@ class AOVListModel(QtCore.QAbstractListModel):
         return [aov for checked, aov in zip(self._checked, self.aovs)
                 if checked]
 
+    def uncheckAll(self):
+        self._checked = [False] * len(self._aovs)
+
+
     def rowCount(self, parent):
 	return len(self.aovs)
 
@@ -647,11 +652,7 @@ class AOVListModel(QtCore.QAbstractListModel):
 	    return value.variable
 
         if role == QtCore.Qt.DecorationRole:
-	    dataType = value.vextype
-
-	    return QtGui.QIcon(
-		":ht/rsc/icons/sohohooks/aovs/{0}.png".format(dataType)
-	    )
+            return utils.getIconFromVexType(value.vextype)
 
         if role == QtCore.Qt.CheckStateRole:
             return self._checked[row]
@@ -669,6 +670,189 @@ class AOVListModel(QtCore.QAbstractListModel):
 	return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsUserCheckable
 
 
+class AOVInfoModel(QtCore.QAbstractTableModel):
+
+    def __init__(self, parent=None):
+        super(AOVInfoModel, self).__init__(parent)
+
+        self._headers = []
+        self._values = []
+
+#        self.initDataFromAOV(aov)
+
+    def initDataFromAOV(self, aov):
+        self._headers = []
+        self._values = []
+
+        self._headers.append("VEX Variable")
+        self._values.append(aov.variable)
+
+        self._headers.append("VEX Type")
+        self._values.append(aov.vextype)
+
+        if aov.channel is not None:
+            self._headers.append("Channel Name")
+            self._values.append(aov.channel)
+
+        if aov.quantize is not None:
+            self._headers.append("Quantize")
+            self._values.append(aov.quantize)
+
+        if aov.sfilter is not None:
+            self._headers.append("Sample Filter")
+            self._values.append(aov.sfilter)
+
+        if aov.pfilter is not None:
+            self._headers.append("Pixel Filter")
+            self._values.append(aov.pfilter)
+
+        if aov.componentexport:
+            self._headers.append("Export Each Component")
+            self._values.append(str(aov.componentexport))
+
+            self._headers.append("Export Components")
+            self._values.append(", ".join(aov.components))
+
+        if aov.lightexport is not None:
+            self._headers.append("Light Exports")
+            self._values.append(aov.lightexport)
+
+            self._headers.append("Light Mask")
+            self._values.append(aov.lightexport_scope)
+
+            self._headers.append("Light Selection")
+            self._values.append(aov.lightexport_select)
 
 
+        if aov.priority > -1:
+            self._headers.append("Priority")
+            self._values.append(aov.priority)
+
+        if aov.comment:
+            self._headers.append("Comment")
+            self._values.append(aov.comment)
+
+        if aov.path is not None:
+            self._headers.append("File Path")
+            self._values.append(aov.path)
+
+    def flags(self, index):
+	return QtCore.Qt.ItemIsEnabled
+
+    def columnCount(self, parent):
+        return 2
+
+    def rowCount(self, parent):
+        return len(self._headers)
+
+    def index(self, row, column, parent=QtCore.QModelIndex()):
+        return self.createIndex(row, column, parent)
+
+    def data(self, index, role=QtCore.Qt.DisplayRole):
+        if not index.isValid():
+            return None
+
+        row = index.row()
+        column = index.column()
+
+        if role == QtCore.Qt.DisplayRole:
+            if column == 0:
+                return self._headers[row]
+            else:
+                return self._values[row]
+
+
+
+class AOVGroupInfoModel(QtCore.QAbstractTableModel):
+
+    def __init__(self, parent=None):
+        super(AOVGroupInfoModel, self).__init__(parent)
+
+        self._headers = []
+        self._values = []
+
+    def initDataFromGroup(self, group):
+        self._headers = []
+        self._values = []
+
+        self._headers.append("Name")
+        self._values.append(group.name)
+
+        if group.comment:
+            self._headers.append("Comment")
+            self._values.append(group.comment)
+
+        if group.icon:
+            self._headers.append("Icon")
+            self._values.append(group.icon)
+
+        if group.path is not None:
+            self._headers.append("File Path")
+            self._values.append(group.path)
+
+
+    def flags(self, index):
+	return QtCore.Qt.ItemIsEnabled
+
+    def columnCount(self, parent):
+        return 2
+
+    def rowCount(self, parent):
+        return len(self._headers)
+
+    def index(self, row, column, parent=QtCore.QModelIndex()):
+        return self.createIndex(row, column, parent)
+
+    def data(self, index, role=QtCore.Qt.DisplayRole):
+        if not index.isValid():
+            return None
+
+        row = index.row()
+        column = index.column()
+
+        if role == QtCore.Qt.DisplayRole:
+            if column == 0:
+                return self._headers[row]
+            else:
+                return self._values[row]
+
+
+
+
+
+
+
+class AOVMemberListModel(QtCore.QAbstractListModel):
+
+    def __init__(self, parent=None):
+	super(AOVMemberListModel, self).__init__(parent)
+
+        self._aovs = []
+
+        self._checked = [False] * len(self._aovs)
+
+    @property
+    def aovs(self):
+        return self._aovs
+
+    def rowCount(self, parent):
+	return len(self.aovs)
+
+    def data(self, index, role):
+	row = index.row()
+	value = self.aovs[row]
+
+	if role == QtCore.Qt.DisplayRole:
+	    return value.variable
+
+        if role == QtCore.Qt.DecorationRole:
+            return utils.getIconFromVexType(value.vextype)
+
+    def flags(self, index):
+	return QtCore.Qt.ItemIsEnabled
+
+
+
+    def initDataFromGroup(self, group):
+        self._aovs = group.aovs
 

@@ -54,7 +54,7 @@ class AOV(object):
 
                 # If the value isn't in the list, raise an exception.
                 if value not in allowable:
-                    raise InvalidPlaneValueError(name, value, allowable)
+                    raise InvalidAOVValueError(name, value, allowable)
 
             # If the key corresponds to attributes on this object we store
             # the data.
@@ -251,6 +251,9 @@ class AOV(object):
         if self.componentexport is not None:
             d["componentexport"] = self.componentexport
 
+            if self.components:
+                d["components"] = self.components
+
         if self.lightexport is not None:
             d["lightexport"] = self.lightexport
             d["lightexport_scope"] = self.lightexport_scope
@@ -301,7 +304,20 @@ class AOV(object):
             channel = self.variable
 
         if self.componentexport:
-            for component in self.components:
+            components = self.components
+
+            if not components:
+                parms =  {
+                    "components": soho.SohoParm("vm_exportcomponents", "str", [""], skipdefault=False),
+                }
+
+                plist = cam.wrangle(wrangler, parms, now)
+
+                if plist:
+                    components = plist["vm_exportcomponents"].Value[0]
+                    components = components.split()
+
+            for component in components:
                 data["channel"] = "{}_{}".format(channel, component)
                 data["component"] = component
 
@@ -484,6 +500,7 @@ class AOV(object):
         # Optional aov information.
         if "planefile" in data:
             planefile = data["planefile"]
+
             if planefile is not None:
                 IFDapi.ray_property("plane", "planefile", [planefile])
 
@@ -506,6 +523,8 @@ class AOV(object):
         # End the plane definition block.
         IFDapi.ray_end()
 
+
+# TODO: Add support for overriding export components per group? @foo:diffuse,reflect,...?
 
 class AOVGroup(object):
     """An object representing a group of AOV definitions.
@@ -535,6 +554,7 @@ class AOVGroup(object):
         """
         self._aovs = []
         self._comment = ""
+        self._icon = None
         self._name = name
         self._path = None
         self._priority = -1
@@ -575,6 +595,14 @@ class AOVGroup(object):
     @comment.setter
     def comment(self, comment):
         self._comment = comment
+
+    @property
+    def icon(self):
+        return self._icon
+
+    @icon.setter
+    def icon(self, icon):
+        self._icon = icon
 
     @property
     def path(self):

@@ -1,5 +1,6 @@
 
 import os
+import re
 
 
 from PySide import QtCore, QtGui
@@ -12,6 +13,76 @@ import hou
 class DialogOperation:
     New = 1
     Edit = 2
+    Info = 3
+
+
+class DialogErrorWidget(QtGui.QWidget):
+
+    def __init__(self, parent=None):
+        super(DialogErrorWidget, self).__init__(parent)
+
+        self._mappings = {}
+
+	self.setContentsMargins(0,0,0,0)
+
+	layout = QtGui.QHBoxLayout()
+	layout.setContentsMargins(0,0,0,0)
+
+	self.icon = QtGui.QLabel()
+        self.icon.setFixedSize(24, 24)
+        self.icon.setPixmap(
+            QtGui.QIcon(":/ht/rsc/icons/sohohooks/aovs/warning.png").pixmap(24, 24)
+        )
+
+        self.icon.hide()
+
+	layout.addWidget(self.icon)
+
+	self.display = QtGui.QLabel()
+
+	layout.addWidget(self.display)
+
+	self.setLayout(layout)
+	self.setFixedHeight(24)
+
+
+    def _updateDisplay(self):
+        error = self.getError()
+
+        if error:
+            self.display.setText(error)
+            self.display.show()
+            self.icon.show()
+
+        else:
+            self.display.clear()
+            self.display.hide()
+            self.icon.hide()
+
+
+    def addError(self, level, msg):
+        self._mappings[level] = msg
+
+        self._updateDisplay()
+
+    def clearError(self, level):
+        if level in self._mappings:
+            del self._mappings[level]
+
+        self._updateDisplay()
+
+    def getError(self):
+        levels = self._mappings.keys()
+
+        if levels:
+            highest = sorted(levels)[0]
+
+            return self._mappings[highest]
+
+        return ""
+
+    def setMessage(self, msg):
+        self.display.setText(msg)
 
 
 class NewAOVGroupDialog(QtGui.QDialog):
@@ -27,6 +98,8 @@ class NewAOVGroupDialog(QtGui.QDialog):
 
         self.setStyleSheet(hou.ui.qtStyleSheet())
 
+        self.error_widget = DialogErrorWidget()
+
 	self._group_name_valid = False
 	self._file_valid = False
 
@@ -36,12 +109,9 @@ class NewAOVGroupDialog(QtGui.QDialog):
 
         layout.addWidget(self.widget)
 
-
-
 	self.resize(450, 475)
 
 	self.setMinimumWidth(450)
-
 
         if self._operation == DialogOperation.New:
             self.setWindowTitle("Create AOV Group")
@@ -68,6 +138,11 @@ class NewAOVGroupDialog(QtGui.QDialog):
         else:
             self._enableCreation(True)
 
+            self._buttonBox.addButton(QtGui.QDialogButtonBox.Reset)
+
+            reset_button = self._buttonBox.button(QtGui.QDialogButtonBox.Reset)
+            reset_button.clicked.connect(self.reset)
+
         self.setLayout(layout)
 
         self.init_from_group(manager.findOrCreateSessionAOVManager().groups['default'])
@@ -76,9 +151,12 @@ class NewAOVGroupDialog(QtGui.QDialog):
         self._group = group
 
         self.group_name.setText(group.name)
-        self.file_path.setText(group.path)
+        self.file_widget.setPath(group.path)
 
         self.setSelectedItems(group.aovs)
+
+    def reset(self):
+        self.init_from_group(self._group)
 
     def init_ui(self):
 	widget = QtGui.QWidget()
@@ -105,39 +183,28 @@ class NewAOVGroupDialog(QtGui.QDialog):
 	grid_layout.addWidget(QtGui.QLabel("File Path"), 2, 0)
 
 
-	file_widget = QtGui.QWidget()
+        self.file_widget = widgets.FileChooser()
 
-	file_layout = QtGui.QHBoxLayout()
-	file_layout.setSpacing(0)
-	file_layout.setContentsMargins(0, 0, 0, 0)
-
-	self.file_path = QtGui.QLineEdit()
-	file_layout.addWidget(self.file_path)
-
-	file_button = QtGui.QPushButton(
-	    QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/chooser_file.png"),
-	    ""
-	)
-
-	file_button.setFlat(True)
-	file_button.setIconSize(QtCore.QSize(16, 16))
-	file_button.setMaximumSize(QtCore.QSize(24, 24))
-
-	file_button.clicked.connect(self.chooseFile)
-
-	file_layout.addWidget(file_button)
-
-	file_widget.setLayout(file_layout)
+        self.file_widget.field.textChanged.connect(self.validateFilePath)
 
         if self._operation == DialogOperation.Edit:
-            self.file_path.setEnabled(False)
-            file_button.setEnabled(False)
+            self.file_widget.enable(False)
 
-	self.file_path.textChanged.connect(self.validateFilePath)
-
-	grid_layout.addWidget(file_widget, 2, 1)
+	grid_layout.addWidget(self.file_widget, 2, 1)
 
         layout.addLayout(grid_layout)
+
+	# =====================================================================
+
+	grid_layout.addWidget(QtGui.QLabel("Comment"), 3, 0)
+
+	self.comment = QtGui.QLineEdit()
+	self.comment.setToolTip(
+	    "Optional comment, eg. 'This group is for X'."
+	)
+
+	grid_layout.addWidget(self.comment, 3, 1)
+
 
 	# =====================================================================
 
@@ -159,77 +226,15 @@ class NewAOVGroupDialog(QtGui.QDialog):
 
 	# =====================================================================
 
-	error_widget = QtGui.QWidget()
-	error_widget.setContentsMargins(0,0,0,0)
-
-	error_layout = QtGui.QHBoxLayout()
-	error_layout.setContentsMargins(0,0,0,0)
-
-	self.error_icon = QtGui.QLabel()
-        self.error_icon.setFixedSize(24, 24)
-        self.error_icon.setPixmap(
-            QtGui.QIcon(":/ht/rsc/icons/sohohooks/aovs/warning.png").pixmap(24, 24)
-        )
-        self.error_icon.hide()
-
-	error_layout.addWidget(self.error_icon)
-
-	self.error = QtGui.QLabel("Enter a group name.")
-
-	error_layout.addWidget(self.error)
-
-	error_widget.setLayout(error_layout)
-	error_widget.setFixedHeight(24)
-
-	layout.addWidget(error_widget)
-
+        self.error_widget.setMessage("Enter a group name.")
+        layout.addWidget(self.error_widget)
 
         widget.setLayout(layout)
 
         return widget
 
-    def chooseFile(self):
-	current = self.file_path.text()
-
-	start_directory = None
-	default_value = None
-
-	if current:
-	    dirname = os.path.dirname(current)
-	    default_value = os.path.basename(current)
-
-	result = hou.ui.selectFile(
-	    start_directory=start_directory,
-	    pattern="*.json",
-	    default_value=default_value,
-	    chooser_mode=hou.fileChooserMode.Write
-	)
-
-	if not result:
-	    return
-
-	ext = os.path.splitext(result)[1]
-
-	if not ext:
-	    result = "{0}.json".format(result)
-
-	self.file_path.setText(result)
-
-
-
-    def clearError(self):
-	self.error.clear()
-	self.error.hide()
-	self.error_icon.hide()
-
-
-    def setError(self, msg):
-	self.error.setText(msg)
-	self.error.show()
-	self.error_icon.show()
-
     def validateGroupName(self):
-	self.clearError()
+	self.error_widget.clearError(0)
 
 	group_name = self.group_name.text()
 	group_name = group_name.strip()
@@ -253,17 +258,17 @@ class NewAOVGroupDialog(QtGui.QDialog):
             self._group_name_valid = False
 
 	if not self._group_name_valid:
-	    self.setError(msg)
+	    self.error_widget.addError(0, msg)
 
 	self.validateAllValues()
 
 
     def validateFilePath(self):
-	self.clearError()
+	self.error_widget.clearError(1)
 
 	self._file_valid = True
 
-	path = self.file_path.text()
+	path = self.file_widget.getPath()
 
 	if path:
 	    dirname = os.path.dirname(path)
@@ -279,7 +284,7 @@ class NewAOVGroupDialog(QtGui.QDialog):
 	    self._file_valid = False
 
 	if not self._file_valid:
-	    self.setError("Invalid file path")
+	    self.error_widget.addError(1, "Invalid file path")
 
 	self.validateAllValues()
 
@@ -300,12 +305,15 @@ class NewAOVGroupDialog(QtGui.QDialog):
 
     def setSelectedItems(self, items):
         model = self.list.model()
-
         source_model = model.sourceModel()
 
         model_items = source_model.aovs
 
         items = utils.flattenList(items)
+
+        source_model.beginResetModel()
+
+        source_model.uncheckAll()
 
         for item in items:
             try:
@@ -316,9 +324,11 @@ class NewAOVGroupDialog(QtGui.QDialog):
 
             source_model._checked[index] = True
 
+        source_model.endResetModel()
+
     def accept(self):
         group_name = self.group_name.text()
-        file_path = self.file_path.text()
+        file_path = self.file_widget.getPath()
 
         if self._operation == DialogOperation.Edit:
             new_group = self._group
@@ -354,6 +364,8 @@ class NewAOVDialog(QtGui.QDialog):
         self._operation = operation
 
         self.setStyleSheet(hou.ui.qtStyleSheet())
+
+        self.error_widget = DialogErrorWidget()
 
 	self._variable_valid = False
 	self._file_valid = False
@@ -468,59 +480,11 @@ class NewAOVDialog(QtGui.QDialog):
 
 	grid_layout.addWidget(QtGui.QLabel("Pixel Filter"), 6, 0)
 
-	pfilter_widget = QtGui.QWidget()
+        self.pfilter_widget = widgets.MenuField(
+            data.PFILTER_MENU_ITEMS
+        )
 
-
-	pfilter_layout = QtGui.QHBoxLayout()
-	pfilter_layout.setSpacing(1)
-	pfilter_layout.setContentsMargins(0, 0, 0, 0)
-
-	self.pfilter_name = QtGui.QLineEdit()
-	pfilter_layout.addWidget(self.pfilter_name)
-
-	pfilter_button = QtGui.QPushButton(
-	)
-
-        pfilter_button.setStyleSheet(
-"""
-QPushButton
-{
-    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                                stop: 0.0 rgb(63, 63, 63),
-                                stop: 1.0 rgb(38, 38, 38));
-
-    height: 14px;
-    width: 11px;
-    border: 1px solid rgba(0,0,0,102);
-
-}
-QPushButton::menu-indicator
-{
-    subcontrol-position: center;
-    height: 16;
-    width: 6;
-}
-
-"""
-)
-
-	pfilter_menu = QtGui.QMenu(pfilter_button)
-
-	for item in data.PFILTER_MENU_ITEMS:
-	    label, value = item
-
-	    action = pfilter_menu.addAction(label)
-
-	    action.triggered.connect(lambda value=value: self.pfilter_name.setText(value))
-
-	pfilter_button.setMenu(pfilter_menu)
-
-	pfilter_layout.addWidget(pfilter_button)
-
-
-	pfilter_widget.setLayout(pfilter_layout)
-
-	grid_layout.addWidget(pfilter_widget, 6, 1)
+	grid_layout.addWidget(self.pfilter_widget, 6, 1)
 
 	# =====================================================================
 
@@ -701,64 +665,19 @@ QSpinBox {
 	grid_layout.addWidget(QtGui.QLabel("File Path"), 19, 0)
 
 
-	file_widget = QtGui.QWidget()
+	self.file_widget = widgets.FileChooser()
 
-	file_layout = QtGui.QHBoxLayout()
-	file_layout.setSpacing(0)
-	file_layout.setContentsMargins(0, 0, 0, 0)
+	grid_layout.addWidget(self.file_widget, 19, 1)
 
-	self.file_path = QtGui.QLineEdit()
-	file_layout.addWidget(self.file_path)
-
-	file_button = QtGui.QPushButton(
-	    QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/chooser_file.png"),
-	    ""
-	)
-
-	file_button.setFlat(True)
-	file_button.setIconSize(QtCore.QSize(16, 16))
-	file_button.setMaximumSize(QtCore.QSize(24, 24))
-
-	file_button.clicked.connect(self.chooseFile)
-
-	file_layout.addWidget(file_button)
-
-	file_widget.setLayout(file_layout)
-
-
-	self.file_path.textChanged.connect(self.validateFilePath)
-
-	grid_layout.addWidget(file_widget, 19, 1)
+	self.file_widget.field.textChanged.connect(self.validateFilePath)
 
 
 	# =====================================================================
 
 	layout.addLayout(grid_layout)
 
-	error_widget = QtGui.QWidget()
-	error_widget.setContentsMargins(0,0,0,0)
-
-	error_layout = QtGui.QHBoxLayout()
-	error_layout.setContentsMargins(0,0,0,0)
-
-	self.error_icon = QtGui.QLabel()
-        self.error_icon.setFixedSize(24, 24)
-        self.error_icon.setPixmap(
-            QtGui.QIcon(":/ht/rsc/icons/sohohooks/aovs/warning.png").pixmap(24, 24)
-        )
-        self.error_icon.hide()
-
-	error_layout.addWidget(self.error_icon)
-
-	self.error = QtGui.QLabel("Enter a variable name.")
-
-	error_layout.addWidget(self.error)
-
-	error_widget.setLayout(error_layout)
-	error_widget.setFixedHeight(24)
-
-	layout.addWidget(error_widget)
-
+        self.error_widget.setMessage("Enter a variable name.")
+        layout.addWidget(self.error_widget)
 
 	widget.setLayout(layout)
 
@@ -781,44 +700,30 @@ QSpinBox {
         self.light_select_label.setEnabled(enable)
         self.light_select.setEnabled(enable)
 
-    def clearError(self):
-	self.error.clear()
-	self.error.hide()
-	self.error_icon.hide()
-
-
-    def setError(self, msg):
-	self.error.setText(msg)
-	self.error.show()
-	self.error_icon.show()
-
     def validateVariableName(self):
-	self.clearError()
+	self.error_widget.clearError(0)
 
 	variable_name = self.variable_name.text()
-	variable_name = variable_name.strip()
 
 	self._variable_valid = True
 
-	if variable_name:
-	    if ' ' in variable_name:
-		self._variable_valid = False
+        result = re.match("^\\w+$", variable_name)
 
-	    elif not variable_name.isalnum():
-		self._variable_valid = False
+        if result is None:
+            self._variable_valid = False
 
 	if not self._variable_valid:
-	    self.setError("Invalid variable name")
+	    self.error_widget.addError(0, "Invalid variable name")
 
 	self.validateAllValues()
 
 
     def validateFilePath(self):
-	self.clearError()
+	self.error_widget.clearError(1)
 
 	self._file_valid = True
 
-	path = self.file_path.text()
+	path = self.file_widget.getPath()
 
 	if path:
 	    dirname = os.path.dirname(path)
@@ -834,7 +739,7 @@ QSpinBox {
 	    self._file_valid = False
 
 	if not self._file_valid:
-	    self.setError("Invalid file path")
+	    self.error_widget.addError(1, "Invalid file path")
 
 	self.validateAllValues()
 
@@ -851,34 +756,6 @@ QSpinBox {
 	self.validInputSignal.emit(valid)
 
 
-    def chooseFile(self):
-	current = self.file_path.text()
-
-	start_directory = None
-	default_value = None
-
-	if current:
-	    dirname = os.path.dirname(current)
-	    default_value = os.path.basename(current)
-
-	result = hou.ui.selectFile(
-	    start_directory=start_directory,
-	    pattern="*.json",
-	    default_value=default_value,
-	    chooser_mode=hou.fileChooserMode.Write
-	)
-
-	if not result:
-	    return
-
-	ext = os.path.splitext(result)[1]
-
-	if not ext:
-	    result = "{0}.json".format(result)
-
-	self.file_path.setText(result)
-
-
     def accept(self):
 	data = {
 	    "variable": self.variable_name.text(),
@@ -893,7 +770,7 @@ QSpinBox {
 	data["quantize"] = self.quantize_box.itemData(self.quantize_box.currentIndex())
 	data["sfilter"] = self.sfilter_box.itemData(self.sfilter_box.currentIndex())
 
-	pfilter = self.pfilter_name.text()
+	pfilter = self.pfilter_widget.value()
 
 	if pfilter:
 	    data["pfilter"] = pfilter
@@ -926,7 +803,7 @@ QSpinBox {
 	writer.addAOV(new_aov)
 
 #	writer.writeToFile(
-#	    os.path.expandvars(self.file_path.text())
+#	    os.path.expandvars(self.file_widget.getPath())
 #	)
 
 
@@ -936,4 +813,208 @@ QSpinBox {
 
     def reject(self):
 	return super(NewAOVDialog, self).reject()
+
+
+class AOVInfoDialog(QtGui.QDialog):
+
+    def __init__(self, aov, parent=None):
+        super(AOVInfoDialog, self).__init__(parent)
+
+        self.setWindowTitle("View AOV Info")
+
+        self.setStyleSheet(hou.ui.qtStyleSheet())
+
+        self._aov = aov
+
+        layout = QtGui.QVBoxLayout()
+
+        mgr = manager.findOrCreateSessionAOVManager()
+
+        self.chooser = QtGui.QComboBox()
+
+        start_idx = -1
+
+        for idx, aov in enumerate(mgr.aovs):
+            if aov.channel is not None:
+                label = "{0} ({1})".format(
+                    aov.variable,
+                    aov.channel
+                )
+
+            else:
+                label = aov.variable
+
+            self.chooser.addItem(
+                utils.getIconFromVexType(aov.vextype),
+                label,
+                aov
+            )
+
+            if aov == self.aov:
+                start_idx = idx
+
+        if start_idx != -1:
+            self.chooser.setCurrentIndex(start_idx)
+
+        layout.addWidget(self.chooser)
+
+        self.table = widgets.AOVInfoTableView(self.aov)
+        layout.addWidget(self.table)
+
+        self._buttonBox = QtGui.QDialogButtonBox(
+            QtGui.QDialogButtonBox.Ok
+        )
+
+
+        edit_button = QtGui.QPushButton(
+            QtGui.QIcon("/opt/hfs15.0.179/houdini/help/icons/large/BUTTONS/edit.png"),
+            "Edit"
+        )
+
+        self._buttonBox.addButton(edit_button, QtGui.QDialogButtonBox.HelpRole)
+
+        edit_button.clicked.connect(self.edit)
+
+        self._buttonBox.accepted.connect(self.accept)
+
+        layout.addWidget(self._buttonBox)
+
+        self.setLayout(layout)
+
+        self.chooser.currentIndexChanged.connect(self.updateModel)
+
+        self.table.resizeColumnToContents(1)
+        self.setMinimumSize(self.table.size())
+
+
+    @property
+    def aov(self):
+        return self._aov
+
+
+    def edit(self):
+        self.accept()
+
+        active = QtGui.QApplication.instance().activeWindow()
+
+        self.dialog = NewAOVDialog(
+            DialogOperation.Edit,
+            active
+        )
+
+        self.dialog.show()
+
+    def updateModel(self, index):
+        aov = self.chooser.itemData(index)
+
+        model = self.table.model()
+
+        model.beginResetModel()
+        model.initDataFromAOV(aov)
+
+        model.endResetModel()
+
+
+
+class AOVGroupInfoDialog(QtGui.QDialog):
+
+    def __init__(self, group, parent=None):
+        super(AOVGroupInfoDialog, self).__init__(parent)
+
+        self._group = group
+
+        self.setWindowTitle("View AOV Group Info")
+
+        self.setStyleSheet(hou.ui.qtStyleSheet())
+
+        layout = QtGui.QVBoxLayout()
+
+        mgr = manager.findOrCreateSessionAOVManager()
+
+        self.chooser = QtGui.QComboBox()
+
+        start_idx = -1
+
+        for idx, group in enumerate(mgr.groups.values()):
+            label = group.name
+
+            self.chooser.addItem(
+                utils.getIconFromGroup(group),
+                label,
+                group
+            )
+
+            if group == self._group:
+                start_idx = idx
+
+        layout.addWidget(self.chooser)
+
+
+        self.table = widgets.AOVGroupInfoTableWidget(self._group)
+        layout.addWidget(self.table)
+
+        self.members = widgets.GroupMemberListWidget(self._group)
+
+        layout.addWidget(self.members)
+
+
+        self._buttonBox = QtGui.QDialogButtonBox(
+            QtGui.QDialogButtonBox.Ok
+        )
+
+        self._buttonBox.accepted.connect(self.accept)
+
+        edit_button = QtGui.QPushButton(
+            QtGui.QIcon("/opt/hfs15.0.179/houdini/help/icons/large/BUTTONS/edit.png"),
+            "Edit"
+        )
+
+        self._buttonBox.addButton(edit_button, QtGui.QDialogButtonBox.HelpRole)
+
+        edit_button.clicked.connect(self.edit)
+
+
+        layout.addWidget(self._buttonBox)
+
+
+        self.table.resizeColumnToContents(1)
+
+        self.setMinimumSize(self.table.size())
+
+        self.setLayout(layout)
+
+        self.chooser.currentIndexChanged.connect(self.updateModel)
+
+        if start_idx != -1:
+            self.chooser.setCurrentIndex(start_idx)
+
+
+    def edit(self):
+        self.accept()
+
+        active = QtGui.QApplication.instance().activeWindow()
+
+        self.dialog = NewAOVGroupDialog(
+            DialogOperation.Edit,
+            active
+        )
+
+        self.dialog.init_from_group(self._group)
+
+        self.dialog.show()
+
+    def updateModel(self, index):
+        group = self.chooser.itemData(index)
+
+        table_model = self.table.model()
+        table_model.beginResetModel()
+        table_model.initDataFromGroup(group)
+        table_model.endResetModel()
+
+        member_model = self.members.model()
+        member_model.beginResetModel()
+        member_model.initDataFromGroup(group)
+        member_model.endResetModel()
+
+
 
