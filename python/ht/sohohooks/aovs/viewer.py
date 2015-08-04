@@ -83,6 +83,16 @@ class AOVViewer(QtGui.QWidget):
             self.select_widget.tree.insertGroup
         )
 
+        self.to_add_widget.tree.model().sourceModel().insertedItemsSignal.connect(self.foo)
+        self.to_add_widget.tree.model().sourceModel().removedItemsSignal.connect(self.bar)
+
+    def foo(self, items):
+        self.select_widget.tree.model().sourceModel().install(items)
+
+    def bar(self, items):
+        self.select_widget.tree.model().sourceModel().uninstall(items)
+
+
     @property
     def interface_name(self):
         return self._interface_name
@@ -115,5 +125,3 @@ class AOVViewerInterface(QtCore.QObject):
 
     def __init__(self, parent=None):
         super(AOVViewerInterface, self).__init__(parent)
-
-

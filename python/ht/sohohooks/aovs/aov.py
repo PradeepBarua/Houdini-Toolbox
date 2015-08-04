@@ -30,7 +30,7 @@ class AOV(object):
         self._lightexport = None
         self._lightexport_scope = "*"
         self._lightexport_select = "*"
-	self._path = None
+        self._path = None
         self._pfilter = None
         self._planefile = None
         self._priority = -1
@@ -81,7 +81,7 @@ class AOV(object):
         return hash(self.variable)
 
     def __repr__(self):
-	return "<AOV {0} ({1})>".format(self.variable, self.vextype)
+        return "<AOV {0} ({1})>".format(self.variable, self.vextype)
 
     def __str__(self):
         return self.variable

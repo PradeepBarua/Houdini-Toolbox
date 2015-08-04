@@ -51,6 +51,9 @@ class TreeNode(object):
     def __cmp__(self, node):
         return cmp(self.name, node.name)
 
+    def __hash__(self):
+        return hash(self.name)
+
     def __repr__(self):
         return "<{0} {1}>".format(self.__class__.__name__, self.name)
 
@@ -299,12 +302,11 @@ class LeafFilterProxyModel(QtGui.QSortFilterProxyModel):
 
 
     def insertRows(self, data, position=None, parent=QtCore.QModelIndex()):
-	return self.sourceModel().insertRows(data)
+        return self.sourceModel().insertRows(data)
 
-    def removeRows(self, idx, parent=QtCore.QModelIndex()):
-	return self.sourceModel().removeRows(
-            self.mapToSource(idx),
-            self.mapToSource(parent)
+    def removeRows(self, index):
+        return self.sourceModel().removeRows(
+            self.mapToSource(index)
         )
 
 
@@ -373,6 +375,10 @@ class BaseAOVTreeModel(QtCore.QAbstractItemModel):
 
         return self.createIndex(parent.row, 0, parent)
 
+
+    def isInstalled(self, node):
+        return False
+
     def data(self, index, role):
         if not index.isValid():
             return None
@@ -401,9 +407,14 @@ class BaseAOVTreeModel(QtCore.QAbstractItemModel):
         if role == QtCore.Qt.ForegroundRole:
             brush = QtGui.QBrush()
 
+            if self.isInstalled(node):
+                brush.setColor(QtGui.QColor(131, 131, 131))
+                return brush
+
             if isinstance(parent, AOVGroupNode):
                 brush.setColor(QtGui.QColor(131, 131, 131))
                 return brush
+
 
             return None
 
@@ -423,10 +434,51 @@ class BaseAOVTreeModel(QtCore.QAbstractItemModel):
 
             return True
 
+
 class AOVSelectModel(BaseAOVTreeModel):
 
     def __init__(self, root, parent=None):
         super(AOVSelectModel, self).__init__(root, parent)
+
+        self.installed = set()
+
+    def isInstalled(self, node):
+        if node in self.installed:
+            return True
+
+        return False
+
+    def install(self, items):
+        for item in items:
+            self.installed.add(item)
+
+    def uninstall(self, items):
+        for item in items:
+            self.installed.remove(item)
+
+        parent = QtCore.QModelIndex()
+        parentNode = self.getNode(parent)
+
+        self.dataChanged.emit(
+            self.index(0,0, parent),
+            self.index(len(parentNode.children)-1 ,0, parent)
+        )
+
+
+        return
+        try:
+            self.installed.remove(node)
+
+            parent = QtCore.QModelIndex()
+            parentNode = self.getNode(parent)
+
+            self.dataChanged.emit(
+                self.index(0,0, parent),
+                self.index(len(parentNode.children)-1 ,0, parent)
+            )
+
+        except KeyError:
+            pass
 
     def flags(self, index):
         if not index.isValid():
@@ -448,7 +500,7 @@ class AOVSelectModel(BaseAOVTreeModel):
 
         for node in nodes:
             if isinstance(node, FolderNode):
-                for child in node.children:
+                for child in reversed(node.children):
                     items.append(child.item)
             else:
                 items.append(node.item)
@@ -529,6 +581,8 @@ class AOVSelectModel(BaseAOVTreeModel):
 # =============================================================================
 
 class AOVsToAddModel(BaseAOVTreeModel):
+    insertedItemsSignal = QtCore.Signal([AOVBaseNode])
+    removedItemsSignal = QtCore.Signal([AOVBaseNode])
 
     def __init__(self, root, parent=None):
         super(AOVsToAddModel, self).__init__(root, parent)
@@ -558,20 +612,21 @@ class AOVsToAddModel(BaseAOVTreeModel):
         return True
 
     def insertRows(self, data, position=None, parent=QtCore.QModelIndex()):
-
         data = [item for item in data if item not in self.items]
 
         parentNode = self.getNode(parent)
 
         if position is None:
-	    position = len(self.items)
+            position = len(self.items)
 
         rows = len(data)
 
         if not rows:
             return False
 
-	self.beginInsertRows(parent, position, position + rows - 1)
+        self.beginInsertRows(parent, position, position + rows - 1)
+
+        added_items = []
 
         for item in data:
             if isinstance(item, AOV):
@@ -580,44 +635,47 @@ class AOVsToAddModel(BaseAOVTreeModel):
 
             else:
                 child_node = AOVGroupNode(item)
-
                 parentNode.insertChild(position, child_node)
 
                 for aov in item.aovs:
                     aov_node = AOVNode(aov, child_node)
 
-	self.endInsertRows()
+            added_items.append(child_node)
 
-	return True
+        self.insertedItemsSignal.emit(added_items)
+
+        self.endInsertRows()
+
+        return True
 
     # TODO: make better?  Accept multiple rows perhaps?
     def removeRows(self, idx, parent=QtCore.QModelIndex()):
         parentNode = self.getNode(parent)
 
-	row = idx.row()
+        row = idx.row()
 
-	self.beginRemoveRows(parent, row, row)
+        self.beginRemoveRows(parent, row, row)
 
+        self.removedItemsSignal.emit([parentNode.children[row]])
         parentNode.removeChild(row)
 
-	self.endRemoveRows()
+        self.endRemoveRows()
 
-	return True
+        return True
 
+    def clearAll(self):
+        parent = QtCore.QModelIndex()
+        node = self.getNode(parent)
 
-    # TODO: Update move left/right.
-    def clear(self):
-        self.beginResetModel()
-
-        self.root.removeAllChildren()
-
-        self.endResetModel()
-
+        # Remove each child.
+        for row in reversed(range(len(node.children))):
+            index = self.index(row, 0, parent)
+            self.removeRows(index, parent)
 
 class AOVGroupEditListModel(QtCore.QAbstractListModel):
 
     def __init__(self, parent=None):
-	super(AOVGroupEditListModel, self).__init__(parent)
+        super(AOVGroupEditListModel, self).__init__(parent)
 
         manager = findOrCreateSessionAOVManager()
         self._aovs = manager.aovs
@@ -636,14 +694,14 @@ class AOVGroupEditListModel(QtCore.QAbstractListModel):
         self._checked = [False] * len(self._aovs)
 
     def rowCount(self, parent):
-	return len(self.aovs)
+        return len(self.aovs)
 
     def data(self, index, role):
-	row = index.row()
-	value = self.aovs[row]
+        row = index.row()
+        value = self.aovs[row]
 
-	if role == QtCore.Qt.DisplayRole:
-	    return value.variable
+        if role == QtCore.Qt.DisplayRole:
+            return value.variable
 
         if role == QtCore.Qt.DecorationRole:
             return utils.getIconFromVexType(value.vextype)
@@ -662,7 +720,7 @@ class AOVGroupEditListModel(QtCore.QAbstractListModel):
             return True
 
     def flags(self, index):
-	return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsUserCheckable
+        return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsUserCheckable
 
 
 class AOVInfoModel(QtCore.QAbstractTableModel):
@@ -733,7 +791,7 @@ class AOVInfoModel(QtCore.QAbstractTableModel):
             self._values.append(aov.path)
 
     def flags(self, index):
-	return QtCore.Qt.ItemIsEnabled
+        return QtCore.Qt.ItemIsEnabled
 
     def columnCount(self, parent):
         return 2
@@ -788,7 +846,7 @@ class AOVGroupInfoModel(QtCore.QAbstractTableModel):
 
 
     def flags(self, index):
-	return QtCore.Qt.ItemIsEnabled
+        return QtCore.Qt.ItemIsEnabled
 
     def columnCount(self, parent):
         return 2
@@ -817,7 +875,7 @@ class AOVGroupInfoModel(QtCore.QAbstractTableModel):
 class AOVMemberListModel(QtCore.QAbstractListModel):
 
     def __init__(self, parent=None):
-	super(AOVMemberListModel, self).__init__(parent)
+        super(AOVMemberListModel, self).__init__(parent)
 
         self._aovs = []
 
@@ -828,23 +886,22 @@ class AOVMemberListModel(QtCore.QAbstractListModel):
         return self._aovs
 
     def rowCount(self, parent):
-	return len(self.aovs)
+        return len(self.aovs)
 
     def data(self, index, role):
-	row = index.row()
-	value = self.aovs[row]
+        row = index.row()
+        value = self.aovs[row]
 
-	if role == QtCore.Qt.DisplayRole:
-	    return value.variable
+        if role == QtCore.Qt.DisplayRole:
+            return value.variable
 
         if role == QtCore.Qt.DecorationRole:
             return utils.getIconFromVexType(value.vextype)
 
     def flags(self, index):
-	return QtCore.Qt.ItemIsEnabled
+        return QtCore.Qt.ItemIsEnabled
 
     def initDataFromGroup(self, group):
         self.beginResetModel()
         self._aovs = group.aovs
         self.endResetModel()
-

@@ -16,12 +16,11 @@ class AOVManager(object):
 
 
     def __init__(self):
-
-	self._aovs = {}
-	self._groups = {}
+        self._aovs = {}
+        self._groups = {}
         self._interface = None
 
-	self._initAOVs()
+        self._initAOVs()
 
     def __repr__(self):
         return "<AOVManager>"
@@ -40,58 +39,60 @@ class AOVManager(object):
     # Why is _aovs a dict???
     @property
     def aovs(self):
-	return sorted(self._aovs.values())
+        return sorted(self._aovs.values())
 
     @property
     def groups(self):
-	return self._groups
+        return self._groups
 
     def _initAOVs(self):
-	all_data = self._loadDataFromFiles()
+        all_data = self._loadDataFromFiles()
 
-	self._createAOVs(all_data)
-	self._createGroups(all_data)
+        self._createAOVs(all_data)
+        self._createGroups(all_data)
 
 
     # TODO: Handle priority
     def _createAOVs(self, all_data):
-	for data in all_data:
-	    if "definitions" not in data:
-		continue
+        for data in all_data:
+            if "definitions" not in data:
+                continue
 
-	    for definition in data["definitions"]:
-		variable = definition["variable"]
+            for definition in data["definitions"]:
+                variable = definition["variable"]
 
-		if variable in self._aovs:
-		    continue
+                if variable in self._aovs:
+                    continue
 
                 if "path" in data:
                     definition["path"] = data["path"]
 
-		aov = AOV(definition)
+                aov = AOV(definition)
+
+                aov.installed = False
 
                 self.addAOV(aov)
 
 
     # TODO: Handle priority
     def _createGroups(self, all_data):
-	for data in all_data:
-	    if "groups" not in data:
-		continue
+        for data in all_data:
+            if "groups" not in data:
+                continue
 
-	    for name, group_data in data["groups"].iteritems():
+            for name, group_data in data["groups"].iteritems():
                 # Skip existing groups.
                 if name in self.groups:
                     continue
 
-		group = AOVGroup(name)
+                group = AOVGroup(name)
 
-		if "include" in group_data:
-		    includes = group_data["include"]
+                if "include" in group_data:
+                    includes = group_data["include"]
 
-		    for include_name in includes:
-			if include_name in self._aovs:
-			    group.aovs.append(self._aovs[include_name])
+                    for include_name in includes:
+                        if include_name in self._aovs:
+                            group.aovs.append(self._aovs[include_name])
 
                 if "comment" in group_data:
                     group.comment = group_data["comment"]
@@ -106,18 +107,18 @@ class AOVManager(object):
 
 
     def _loadDataFromFiles(self):
-	paths = _findAOVFiles()
+        paths = _findAOVFiles()
 
-	return [self._loadDataFromFile(path) for path in paths]
+        return [self._loadDataFromFile(path) for path in paths]
 
 
     def _loadDataFromFile(self, path):
-	with open(path) as f:
-	    data = json.load(f, object_hook=convertFromUnicode)
+        with open(path) as f:
+            data = json.load(f, object_hook=convertFromUnicode)
 
-	data["path"] = path
+        data["path"] = path
 
-	return data
+        return data
 
 
     def addAOV(self, aov):
@@ -139,18 +140,18 @@ class AOVManager(object):
         self._groups = {}
 
     def reload(self):
-	self._initAOVs()
+        self._initAOVs()
 
 
 
     def load(self, path):
-	data = [self._loadDataFromFile(path)]
+        data = [self._loadDataFromFile(path)]
 
-	self._createAOVs(data)
-	self._createGroups(data)
+        self._createAOVs(data)
+        self._createGroups(data)
 
     def save(self):
-	pass
+        pass
 
     def getAOVsFromString(self, aov_str):
         aovs = []
@@ -203,15 +204,15 @@ class AOVManager(object):
 def _findAOVFiles():
 
     try:
-	directories = hou.findDirectories("config/aovs")
+        directories = hou.findDirectories("config/aovs")
 
     except hou.OperationFailed:
-	directories = []
+        directories = []
 
     all_files = []
 
     for directory in directories:
-	all_files.extend(glob.glob(os.path.join(directory, "*.json")))
+        all_files.extend(glob.glob(os.path.join(directory, "*.json")))
 
     return all_files
 

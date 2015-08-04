@@ -118,10 +118,9 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
 
         model = self.model()
 
-        if indexes:
-            for index in indexes:
-                index = model.mapToSource(index)
-                nodes.append(model.sourceModel().getNode(index))
+        for index in indexes:
+            index = model.mapToSource(index)
+            nodes.append(model.sourceModel().getNode(index))
 
         return nodes
 
@@ -136,14 +135,14 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
 
         show_info = False
 
-        for idx in indexes:
-            src_idx = self.model().mapToSource(idx)
-            node = src_idx.internalPointer()
+        for index in indexes:
+            source_index = self.model().mapToSource(index)
+            node = source_index.internalPointer()
 
             if isinstance(node, (models.AOVGroupNode, models.FolderNode)):
                 show_exp_col_all = True
 
-                if self.isExpanded(idx):
+                if self.isExpanded(index):
                     show_collapse = True
                 else:
                     show_expand = True
@@ -279,8 +278,6 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
             self._collapseIndex(index)
 
     def showInfo(self):
-        indexes = self.selectedIndexes()
-
         nodes = self.getSelectedNodes()
 
         filtered = [node for node in nodes
@@ -315,12 +312,17 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
 
         if nodes:
             self.parent().installSignal.emit(nodes)
+            #for node in nodes:
+            #    self.model().sourceModel().install(node)
 
     def uninstallSelected(self):
         nodes = self.getSelectedNodes()
 
         if nodes:
             self.parent().removeSignal.emit(nodes)
+            #for node in nodes:
+                #self.model().sourceModel().uninstall(node)
+
 
     def keyPressEvent(self, event):
         key = event.key()
@@ -685,7 +687,7 @@ class AOVSelectWidget(QtGui.QWidget):
     def emitInstallSignal(self):
         nodes = self.getSelectedNodes()
 
-        if nodes:# is not None:
+        if nodes:
             self.installSignal.emit(nodes)
 
     def emitRemoveSignal(self):
@@ -799,32 +801,30 @@ class AOVsToAddTreeWidget(QtGui.QTreeView):
         super(AOVsToAddTreeWidget, self).keyPressEvent(event)
 
 
-    def extractSelected(self, plane_groups=None):
+    def extractSelected(self):
         indexes = self.selectedIndexes()
 
         for index in reversed(indexes):
-            row = index.row()
+            source_index = self.model().mapToSource(index)
 
-            idx = self.model().mapToSource(index)
-
-            node = idx.internalPointer()
+            node = source_index.internalPointer()
 
             if isinstance(node, models.AOVNode):
                 continue
 
-            group = node.group
-
-            aovs = reversed(group.aovs)
-
             self.model().removeRows(index)
+
+            aovs = reversed(node.group.aovs)
+            row = index.row()
+
             self.model().sourceModel().insertRows(aovs, row)
 
 
     def removeSelected(self):
         indexes = self.selectedIndexes()
 
-        for idx in reversed(indexes):
-            self.model().removeRows(idx)
+        for index in reversed(indexes):
+            self.model().removeRows(index)
 
 
     def collapseSelected(self):
@@ -850,12 +850,12 @@ class AOVsToAddTreeWidget(QtGui.QTreeView):
         show_expand = False
         show_collapse = False
 
-        for idx in indexes:
-            src_idx = self.model().mapToSource(idx)
-            node = src_idx.internalPointer()
+        for index in indexes:
+            source_index = self.model().mapToSource(index)
+            node = source_index.internalPointer()
 
             if isinstance(node, models.AOVGroupNode):
-                if self.isExpanded(idx):
+                if self.isExpanded(index):
                     show_collapse = True
                 else:
                     show_expand = True
@@ -903,8 +903,8 @@ class AOVsToAddTreeWidget(QtGui.QTreeView):
 
         show_extract = False
 
-        for idx in indexes:
-            idx = self.model().mapToSource(idx)
+        for index in indexes:
+            idx = self.model().mapToSource(index)
             node = idx.internalPointer()
 
             if isinstance(node, models.AOVGroupNode):
@@ -1007,9 +1007,10 @@ class AOVsToAddToolBar(QtGui.QToolBar):
             triggered=self.clear
         )
 
-        clear_button = QtGui.QToolButton(self)
-        clear_button.setDefaultAction(clear_action)
-        self.addWidget(clear_button)
+        self.clear_button = QtGui.QToolButton(self)
+        self.clear_button.setDefaultAction(clear_action)
+        self.clear_button.setEnabled(False)
+        self.addWidget(self.clear_button)
 
     def clear(self):
         self.clearAOVsSignal.emit()
@@ -1048,12 +1049,6 @@ class AOVsToAddToolBar(QtGui.QToolBar):
         )
 
         new_group_dialog.show()
-
-    def setAsParameters(self):
-        self._apply_as_parms = True
-
-    def setAtRendertime(self):
-        self._apply_as_parms = False
 
     def applyAtRenderTime(self):
         self.applyAtRenderTimeSignal.emit()
@@ -1122,16 +1117,26 @@ class AOVsToAddWidget(QtGui.QWidget):
         self.tree.model().sourceModel().rowsInserted.connect(self.dataUpdated)
         self.tree.model().sourceModel().rowsRemoved.connect(self.dataUpdated)
 
-        self.tree.model().sourceModel().rowsInserted.connect(self.dataUpdated)
-        self.tree.model().sourceModel().rowsRemoved.connect(self.dataUpdated)
+#        self.tree.model().sourceModel().rowsInserted.connect(self.dataUpdated)
+#        self.tree.model().sourceModel().rowsRemoved.connect(self.dataUpdated)
 
+        self.tree.model().sourceModel().modelReset.connect(self.dataCleared)
+
+    def dataCleared(self):
+        self.toolbar.apply_button.setEnabled(False)
+        self.toolbar.apply_as_parms_button.setEnabled(False)
+        self.toolbar.new_group_button.setEnabled(False)
+        self.toolbar.clear_button.setEnabled(False)
+
+        self.updateEnabledSignal.emit()
 
     def dataUpdated(self, index, start, end):
-        rows = self.tree.model().sourceModel().rowCount(QtCore.QModelIndex())
+        enable = self.tree.model().sourceModel().rowCount(QtCore.QModelIndex()) > 0
 
-        self.toolbar.apply_button.setEnabled(rows)
-        self.toolbar.apply_as_parms_button.setEnabled(rows)
-        self.toolbar.new_group_button.setEnabled(rows)
+        self.toolbar.apply_button.setEnabled(enable)
+        self.toolbar.apply_as_parms_button.setEnabled(enable)
+        self.toolbar.new_group_button.setEnabled(enable)
+        self.toolbar.clear_button.setEnabled(enable)
 
         self.updateEnabledSignal.emit()
 
@@ -1154,8 +1159,9 @@ class AOVsToAddWidget(QtGui.QWidget):
 
         utils.applyElementsAsParms(elements, nodes)
 
+    # TODO: Maybe this should manually remove each row?
     def clearAOVs(self):
-        self.tree.model().sourceModel().clear()
+        self.tree.model().sourceModel().clearAll()
 
     def installItems(self, items):
         self.tree.model().insertRows(items)
@@ -1313,55 +1319,55 @@ class FileChooser(QtGui.QWidget):
     def __init__(self, parent=None):
         super(FileChooser, self).__init__(parent)
 
-	layout = QtGui.QHBoxLayout()
-	layout.setSpacing(0)
-	layout.setContentsMargins(0, 0, 0, 0)
+        layout = QtGui.QHBoxLayout()
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
 
-	self.field = QtGui.QLineEdit()
-	layout.addWidget(self.field)
+        self.field = QtGui.QLineEdit()
+        layout.addWidget(self.field)
 
-	self.button = QtGui.QPushButton(
-	    QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/chooser_file.png"),
-	    ""
-	)
+        self.button = QtGui.QPushButton(
+            QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/chooser_file.png"),
+            ""
+        )
 
-	self.button.setFlat(True)
-	self.button.setIconSize(QtCore.QSize(16, 16))
-	self.button.setMaximumSize(QtCore.QSize(24, 24))
+        self.button.setFlat(True)
+        self.button.setIconSize(QtCore.QSize(16, 16))
+        self.button.setMaximumSize(QtCore.QSize(24, 24))
 
-	self.button.clicked.connect(self.chooseFile)
+        self.button.clicked.connect(self.chooseFile)
 
-	layout.addWidget(self.button)
+        layout.addWidget(self.button)
 
-	self.setLayout(layout)
+        self.setLayout(layout)
 
 
     def chooseFile(self):
-	current = self.field.text()
+        current = self.field.text()
 
-	start_directory = None
-	default_value = None
+        start_directory = None
+        default_value = None
 
-	if current:
-	    dirname = os.path.dirname(current)
-	    default_value = os.path.basename(current)
+        if current:
+            dirname = os.path.dirname(current)
+            default_value = os.path.basename(current)
 
-	result = hou.ui.selectFile(
-	    start_directory=start_directory,
-	    pattern="*.json",
-	    default_value=default_value,
-	    chooser_mode=hou.fileChooserMode.Write
-	)
+        result = hou.ui.selectFile(
+            start_directory=start_directory,
+            pattern="*.json",
+            default_value=default_value,
+            chooser_mode=hou.fileChooserMode.Write
+        )
 
-	if not result:
-	    return
+        if not result:
+            return
 
-	ext = os.path.splitext(result)[1]
+        ext = os.path.splitext(result)[1]
 
-	if not ext:
-	    result = "{0}.json".format(result)
+        if not ext:
+            result = "{0}.json".format(result)
 
-	self.field.setText(result)
+        self.field.setText(result)
 
     def enable(self, enable):
         self.field.setEnabled(enable)
@@ -1526,6 +1532,3 @@ QSpinBox {
 
 """
         )
-
-
-

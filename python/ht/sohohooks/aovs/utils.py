@@ -74,14 +74,14 @@ def applyElementsAsParms(elements, nodes):
     aovs = flattenList(elements)
 
     for node in nodes:
-	applyToNodeAsParms(node, aovs)
+        applyToNodeAsParms(node, aovs)
 
 
 def applyElementsAsString(elements, nodes):
     value = listAsString(elements)
 
     for node in nodes:
-	if not node.parm("auto_aovs"):
+        if not node.parm("auto_aovs"):
             ptg = node.parmTemplateGroup()
 
             parm_template = hou.ToggleParmTemplate(
@@ -97,15 +97,15 @@ def applyElementsAsString(elements, nodes):
             ptg.append(parm_template)
 
 
-	    parm_template = hou.StringParmTemplate(
-		"auto_aovs",
-		"Automatic AOVs",
-		1,
+            parm_template = hou.StringParmTemplate(
+                "auto_aovs",
+                "Automatic AOVs",
+                1,
                 item_generator_script="from ht.sohohooks.aovs import manager\n\nreturn manager.buildMenuScript()",
                 item_generator_script_language=hou.scriptLanguage.Python,
                 menu_type=hou.menuType.StringToggle,
                 help="Automatically add AOVs at IFD generation time."
-	    )
+            )
 
             parm_template.setConditional(
                 hou.parmCondType.DisableWhen,
@@ -115,8 +115,8 @@ def applyElementsAsString(elements, nodes):
             ptg.append(parm_template)
             node.setParmTemplateGroup(ptg)
 
-	parm = node.parm("auto_aovs")
-	parm.set(value)
+        parm = node.parm("auto_aovs")
+        parm.set(value)
 
 
 

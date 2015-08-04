@@ -22,12 +22,12 @@ class DialogErrorWidget(QtGui.QWidget):
 
         self._mappings = {}
 
-	self.setContentsMargins(0,0,0,0)
+        self.setContentsMargins(0,0,0,0)
 
-	layout = QtGui.QHBoxLayout()
-	layout.setContentsMargins(0,0,0,0)
+        layout = QtGui.QHBoxLayout()
+        layout.setContentsMargins(0,0,0,0)
 
-	self.icon = QtGui.QLabel()
+        self.icon = QtGui.QLabel()
         self.icon.setFixedSize(24, 24)
         self.icon.setPixmap(
             QtGui.QIcon(":/ht/rsc/icons/sohohooks/aovs/warning.png").pixmap(24, 24)
@@ -35,14 +35,14 @@ class DialogErrorWidget(QtGui.QWidget):
 
         self.icon.hide()
 
-	layout.addWidget(self.icon)
+        layout.addWidget(self.icon)
 
-	self.display = QtGui.QLabel()
+        self.display = QtGui.QLabel()
 
-	layout.addWidget(self.display)
+        layout.addWidget(self.display)
 
-	self.setLayout(layout)
-	self.setFixedHeight(24)
+        self.setLayout(layout)
+        self.setFixedHeight(24)
 
 
     def _updateDisplay(self):
@@ -98,27 +98,27 @@ class AOVGroupDialog(QtGui.QDialog):
 
         self.error_widget = DialogErrorWidget()
 
-	self._group_name_valid = False
-	self._file_valid = False
+        self._group_name_valid = False
+        self._file_valid = False
 
-	layout = QtGui.QVBoxLayout()
+        layout = QtGui.QVBoxLayout()
 
         self.widget = self.init_ui()
 
         layout.addWidget(self.widget)
 
-	self.resize(450, 475)
+        self.resize(450, 475)
 
-	self.setMinimumWidth(450)
+        self.setMinimumWidth(450)
 
         if self._operation == DialogOperation.New:
             self.setWindowTitle("Create AOV Group")
         else:
             self.setWindowTitle("Edit AOV Group")
 
-	self.setWindowIcon(
-	    QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/create_group.png")
-	)
+        self.setWindowIcon(
+            QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/create_group.png")
+        )
 
         self._buttonBox = QtGui.QDialogButtonBox(
             QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel
@@ -127,7 +127,7 @@ class AOVGroupDialog(QtGui.QDialog):
         self._buttonBox.accepted.connect(self.accept)
         self._buttonBox.rejected.connect(self.reject)
 
-	layout.addWidget(self._buttonBox)
+        layout.addWidget(self._buttonBox)
 
         if self._operation == DialogOperation.New:
             self._enableCreation(False)
@@ -157,28 +157,28 @@ class AOVGroupDialog(QtGui.QDialog):
         self.init_from_group(self._group)
 
     def init_ui(self):
-	widget = QtGui.QWidget()
-	layout = QtGui.QVBoxLayout()
+        widget = QtGui.QWidget()
+        layout = QtGui.QVBoxLayout()
 
-	grid_layout = QtGui.QGridLayout()
+        grid_layout = QtGui.QGridLayout()
 
-	# =====================================================================
+        # =====================================================================
 
-	grid_layout.addWidget(QtGui.QLabel("Group Name"), 1, 0)
+        grid_layout.addWidget(QtGui.QLabel("Group Name"), 1, 0)
 
-	self.group_name = QtGui.QLineEdit()
-	grid_layout.addWidget(self.group_name, 1, 1)
+        self.group_name = QtGui.QLineEdit()
+        grid_layout.addWidget(self.group_name, 1, 1)
 
-	self.group_name.setFocus()
+        self.group_name.setFocus()
 
         if self._operation == DialogOperation.Edit:
             self.group_name.setEnabled(False)
 
-	self.group_name.textChanged.connect(self.validateGroupName)
+        self.group_name.textChanged.connect(self.validateGroupName)
 
-	# =====================================================================
+        # =====================================================================
 
-	grid_layout.addWidget(QtGui.QLabel("File Path"), 2, 0)
+        grid_layout.addWidget(QtGui.QLabel("File Path"), 2, 0)
 
 
         self.file_widget = widgets.FileChooser()
@@ -188,30 +188,30 @@ class AOVGroupDialog(QtGui.QDialog):
         if self._operation == DialogOperation.Edit:
             self.file_widget.enable(False)
 
-	grid_layout.addWidget(self.file_widget, 2, 1)
+        grid_layout.addWidget(self.file_widget, 2, 1)
 
         layout.addLayout(grid_layout)
 
-	# =====================================================================
+        # =====================================================================
 
-	grid_layout.addWidget(QtGui.QLabel("Comment"), 3, 0)
+        grid_layout.addWidget(QtGui.QLabel("Comment"), 3, 0)
 
-	self.comment = QtGui.QLineEdit()
-	self.comment.setToolTip(
-	    "Optional comment, eg. 'This group is for X'."
-	)
+        self.comment = QtGui.QLineEdit()
+        self.comment.setToolTip(
+            "Optional comment, eg. 'This group is for X'."
+        )
 
-	grid_layout.addWidget(self.comment, 3, 1)
+        grid_layout.addWidget(self.comment, 3, 1)
 
 
-	# =====================================================================
+        # =====================================================================
 
         self.list = widgets.NewGroupAOVListWidget(self)
 
         layout.addWidget(self.list)
 
 
-	# =====================================================================
+        # =====================================================================
 
         self.filter = widgets.AOVFilterWidget()
         layout.addWidget(self.filter)
@@ -222,7 +222,7 @@ class AOVGroupDialog(QtGui.QDialog):
             self.list.proxy_model.setFilterWildcard
         )
 
-	# =====================================================================
+        # =====================================================================
 
         self.error_widget.setMessage("Enter a group name.")
         layout.addWidget(self.error_widget)
@@ -232,74 +232,74 @@ class AOVGroupDialog(QtGui.QDialog):
         return widget
 
     def validateGroupName(self):
-	self.error_widget.clearError(0)
+        self.error_widget.clearError(0)
 
-	group_name = self.group_name.text()
-	group_name = group_name.strip()
+        group_name = self.group_name.text()
+        group_name = group_name.strip()
 
-	self._group_name_valid = True
+        self._group_name_valid = True
         msg = "Invalid group name"
 
-	if group_name:
+        if group_name:
             mgr = manager.findOrCreateSessionAOVManager()
 
-	    if ' ' in group_name:
-		self._group_name_valid = False
+            if ' ' in group_name:
+                self._group_name_valid = False
 
-	    elif not group_name.isalnum():
-		self._group_name_valid = False
+            elif not group_name.isalnum():
+                self._group_name_valid = False
 
             elif group_name in mgr.groups:
-		self._group_name_valid = False
+                self._group_name_valid = False
                 msg = "Group already exists"
         else:
             self._group_name_valid = False
 
-	if not self._group_name_valid:
-	    self.error_widget.addError(0, msg)
+        if not self._group_name_valid:
+            self.error_widget.addError(0, msg)
 
-	self.validateAllValues()
+        self.validateAllValues()
 
 
     def validateFilePath(self):
-	self.error_widget.clearError(1)
+        self.error_widget.clearError(1)
 
-	self._file_valid = True
+        self._file_valid = True
 
-	path = self.file_widget.getPath()
+        path = self.file_widget.getPath()
 
-	if path:
-	    dirname = os.path.dirname(path)
-	    file_name = os.path.basename(path)
+        if path:
+            dirname = os.path.dirname(path)
+            file_name = os.path.basename(path)
 
-	    if not dirname or not file_name:
-		self._file_valid = False
+            if not dirname or not file_name:
+                self._file_valid = False
 
-	    elif not os.path.splitext(file_name)[1]:
-		self._file_valid = False
+            elif not os.path.splitext(file_name)[1]:
+                self._file_valid = False
 
-	else:
-	    self._file_valid = False
+        else:
+            self._file_valid = False
 
-	if not self._file_valid:
-	    self.error_widget.addError(1, "Invalid file path")
+        if not self._file_valid:
+            self.error_widget.addError(1, "Invalid file path")
 
-	self.validateAllValues()
+        self.validateAllValues()
 
 
     def validateAllValues(self):
-	valid = True
+        valid = True
 
-	if not self._group_name_valid:
-	    valid = False
+        if not self._group_name_valid:
+            valid = False
 
-	if not self._file_valid:
-	    valid = False
+        if not self._file_valid:
+            valid = False
 
-	self.validInputSignal.emit(valid)
+        self.validInputSignal.emit(valid)
 
     def _enableCreation(self, enable):
-	self._buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(enable)
+        self._buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(enable)
 
     def setSelectedItems(self, items):
         model = self.list.model()
@@ -349,7 +349,7 @@ class AOVGroupDialog(QtGui.QDialog):
             if self._operation == DialogOperation.New:
                 self.newAOVGroupSignal.emit(new_group)
 
-	return super(AOVGroupDialog, self).accept()
+        return super(AOVGroupDialog, self).accept()
 
 class AOVDialog(QtGui.QDialog):
 
@@ -357,7 +357,7 @@ class AOVDialog(QtGui.QDialog):
     newAOVSignal = QtCore.Signal(aov.AOV)
 
     def __init__(self, operation=DialogOperation.New, parent=None):
-	super(AOVDialog, self).__init__(parent)
+        super(AOVDialog, self).__init__(parent)
 
         self._operation = operation
 
@@ -365,19 +365,19 @@ class AOVDialog(QtGui.QDialog):
 
         self.error_widget = DialogErrorWidget()
 
-	self._variable_valid = False
-	self._file_valid = False
+        self._variable_valid = False
+        self._file_valid = False
 
-	layout = QtGui.QVBoxLayout()
+        layout = QtGui.QVBoxLayout()
 
-	self.widget = self.init_ui()
+        self.widget = self.init_ui()
 
-	layout.addWidget(self.widget)
+        layout.addWidget(self.widget)
 
-	self.resize(450, 525)
+        self.resize(450, 525)
 
-	self.setMinimumWidth(450)
-	self.setFixedHeight(525)
+        self.setMinimumWidth(450)
+        self.setFixedHeight(525)
 
         if self._operation == DialogOperation.New:
             self.setWindowTitle("Create AOV")
@@ -414,26 +414,26 @@ class AOVDialog(QtGui.QDialog):
             reset_button.clicked.connect(self.reset)
 
 
-	layout.addWidget(self._buttonBox)
+        layout.addWidget(self._buttonBox)
 
-	self.setLayout(layout)
+        self.setLayout(layout)
 
     def reset(self):
         self.initFromAOV(self._aov)
 
 
     def init_ui(self):
-	widget = QtGui.QWidget()
-	layout = QtGui.QVBoxLayout()
+        widget = QtGui.QWidget()
+        layout = QtGui.QVBoxLayout()
 
-	grid_layout = QtGui.QGridLayout()
+        grid_layout = QtGui.QGridLayout()
 
-	# =====================================================================
+        # =====================================================================
 
-	grid_layout.addWidget(QtGui.QLabel("VEX Variable"), 1, 0)
+        grid_layout.addWidget(QtGui.QLabel("VEX Variable"), 1, 0)
 
-	self.variable_name = QtGui.QLineEdit()
-	grid_layout.addWidget(self.variable_name, 1, 1)
+        self.variable_name = QtGui.QLineEdit()
+        grid_layout.addWidget(self.variable_name, 1, 1)
 
         if self._operation == DialogOperation.New:
             self.variable_name.setFocus()
@@ -442,18 +442,18 @@ class AOVDialog(QtGui.QDialog):
         else:
             self.variable_name.setEnabled(False)
 
-	# =====================================================================
+        # =====================================================================
 
-	grid_layout.addWidget(QtGui.QLabel("VEX Type"), 2, 0)
+        grid_layout.addWidget(QtGui.QLabel("VEX Type"), 2, 0)
 
-	self.type_box = QtGui.QComboBox()
+        self.type_box = QtGui.QComboBox()
 
-	for entry in data.VEXTYPE_MENU_ITEMS:
-	    self.type_box.addItem(
-		QtGui.QIcon(entry[2]),
-		entry[1],
-		entry[0]
-	    )
+        for entry in data.VEXTYPE_MENU_ITEMS:
+            self.type_box.addItem(
+                QtGui.QIcon(entry[2]),
+                entry[1],
+                entry[0]
+            )
 
         if self._operation == DialogOperation.New:
             self.type_box.setCurrentIndex(1)
@@ -461,142 +461,134 @@ class AOVDialog(QtGui.QDialog):
         else:
             self.type_box.setEnabled(False)
 
-	grid_layout.addWidget(self.type_box, 2, 1)
+        grid_layout.addWidget(self.type_box, 2, 1)
 
-	# =====================================================================
+        # =====================================================================
 
-	grid_layout.addWidget(QtGui.QLabel("Channel Name"), 3, 0)
+        grid_layout.addWidget(QtGui.QLabel("Channel Name"), 3, 0)
 
-	self.channel_name = QtGui.QLineEdit()
-	self.channel_name.setToolTip(
-	    "Optional channel name Mantra will rename the AOV to."
-	)
+        self.channel_name = QtGui.QLineEdit()
+        self.channel_name.setToolTip(
+            "Optional channel name Mantra will rename the AOV to."
+        )
 
-	grid_layout.addWidget(self.channel_name, 3, 1)
+        grid_layout.addWidget(self.channel_name, 3, 1)
 
-	# =====================================================================
+        # =====================================================================
 
-	grid_layout.addWidget(QtGui.QLabel("Quantize"), 4, 0)
+        grid_layout.addWidget(QtGui.QLabel("Quantize"), 4, 0)
 
-	self.quantize_box = QtGui.QComboBox()
+        self.quantize_box = QtGui.QComboBox()
 
-	for entry in data.QUANTIZE_MENU_ITEMS:
-	    self.quantize_box.addItem(entry[1], entry[0])
+        for entry in data.QUANTIZE_MENU_ITEMS:
+            self.quantize_box.addItem(entry[1], entry[0])
 
-	self.quantize_box.setCurrentIndex(2)
+        self.quantize_box.setCurrentIndex(2)
 
-	grid_layout.addWidget(self.quantize_box, 4, 1)
+        grid_layout.addWidget(self.quantize_box, 4, 1)
 
-	# =====================================================================
+        # =====================================================================
 
-	grid_layout.addWidget(QtGui.QLabel("Sample Filter"), 5, 0)
+        grid_layout.addWidget(QtGui.QLabel("Sample Filter"), 5, 0)
 
-	self.sfilter_box = QtGui.QComboBox()
+        self.sfilter_box = QtGui.QComboBox()
 
-	for entry in data.SFILTER_MENU_ITEMS:
-	    self.sfilter_box.addItem(entry[1], entry[0])
+        for entry in data.SFILTER_MENU_ITEMS:
+            self.sfilter_box.addItem(entry[1], entry[0])
 
-	grid_layout.addWidget(self.sfilter_box, 5, 1)
+        grid_layout.addWidget(self.sfilter_box, 5, 1)
 
-	# =====================================================================
+        # =====================================================================
 
-	grid_layout.addWidget(QtGui.QLabel("Pixel Filter"), 6, 0)
+        grid_layout.addWidget(QtGui.QLabel("Pixel Filter"), 6, 0)
 
         self.pfilter_widget = widgets.MenuField(
             data.PFILTER_MENU_ITEMS
         )
 
-	grid_layout.addWidget(self.pfilter_widget, 6, 1)
+        grid_layout.addWidget(self.pfilter_widget, 6, 1)
 
-	# =====================================================================
+        # =====================================================================
 
-	grid_layout.setRowMinimumHeight(7, 25)
+        grid_layout.setRowMinimumHeight(7, 25)
 
-	# =====================================================================
+        # =====================================================================
 
         self.componentexport = QtGui.QCheckBox()
 
         grid_layout.addWidget(self.componentexport, 8, 0)
         grid_layout.addWidget(QtGui.QLabel("Export variable for each component"), 8, 1)
 
-	# =====================================================================
+        # =====================================================================
 
         self.components_label = QtGui.QLabel("Export Components")
         self.components_label.setDisabled(True)
 
         grid_layout.addWidget(self.components_label, 9, 0)
 
-	self.components = QtGui.QLineEdit()
-	self.components.setToolTip(
-	    "Shading component names.  Leaving this field empty will use the components" \
+        self.components = QtGui.QLineEdit()
+        self.components.setToolTip(
+            "Shading component names.  Leaving this field empty will use the components" \
             " selected on the Mantra ROP."
-	)
+        )
 
 #        self.components.setText("diffuse reflect coat refract volume")
         self.components.setDisabled(True)
 
         self.componentexport.stateChanged.connect(self._enableComponents)
 
-	grid_layout.addWidget(self.components, 9, 1)
+        grid_layout.addWidget(self.components, 9, 1)
 
-	# =====================================================================
+        # =====================================================================
 
-	grid_layout.setRowMinimumHeight(10, 25)
+        grid_layout.setRowMinimumHeight(10, 25)
 
-	# =====================================================================
+        # =====================================================================
 
-	grid_layout.addWidget(QtGui.QLabel("Light Exports"), 11, 0)
+        grid_layout.addWidget(QtGui.QLabel("Light Exports"), 11, 0)
 
-	self.lightexport = QtGui.QComboBox()
+        self.lightexport = QtGui.QComboBox()
 
-	for entry in data.LIGHTEXPORT_MENU_ITEMS:
-	    self.lightexport.addItem(entry[1], entry[0])
+        for entry in data.LIGHTEXPORT_MENU_ITEMS:
+            self.lightexport.addItem(entry[1], entry[0])
 
-	grid_layout.addWidget(self.lightexport, 11, 1)
+        grid_layout.addWidget(self.lightexport, 11, 1)
 
-	# =====================================================================
+        # =====================================================================
 
         self.light_mask_label = QtGui.QLabel("Light Mask")
         self.light_mask_label.setDisabled(True)
 
         grid_layout.addWidget(self.light_mask_label, 12, 0)
 
-	self.light_mask = QtGui.QLineEdit()
-#	self.light_mask.setToolTip(
-#	    "Shading component names."
-#	)
-
+        self.light_mask = QtGui.QLineEdit()
         self.light_mask.setText("*")
         self.light_mask.setDisabled(True)
 
         self.lightexport.currentIndexChanged.connect(self._enableExports)
 
-	grid_layout.addWidget(self.light_mask, 12, 1)
+        grid_layout.addWidget(self.light_mask, 12, 1)
 
-	# =====================================================================
+        # =====================================================================
 
         self.light_select_label = QtGui.QLabel("Light Selection")
         self.light_select_label.setDisabled(True)
 
         grid_layout.addWidget(self.light_select_label, 13, 0)
 
-	self.light_select = QtGui.QLineEdit()
-#	self.light_select.setToolTip(
-#	    "Shading component names."
-#	)
-
+        self.light_select = QtGui.QLineEdit()
         self.light_select.setText("*")
         self.light_select.setDisabled(True)
 
         self.lightexport.currentIndexChanged.connect(self._enableExports)
 
-	grid_layout.addWidget(self.light_select, 13, 1)
+        grid_layout.addWidget(self.light_select, 13, 1)
 
-	# =====================================================================
+        # =====================================================================
 
-	grid_layout.setRowMinimumHeight(14, 25)
+        grid_layout.setRowMinimumHeight(14, 25)
 
-	# =====================================================================
+        # =====================================================================
 
         grid_layout.addWidget(QtGui.QLabel("Priority"), 15, 0)
 
@@ -606,32 +598,32 @@ class AOVDialog(QtGui.QDialog):
 
         grid_layout.addWidget(self.priority, 15, 1)
 
-	# =====================================================================
+        # =====================================================================
 
-	grid_layout.setRowMinimumHeight(16, 25)
+        grid_layout.setRowMinimumHeight(16, 25)
 
-	# =====================================================================
+        # =====================================================================
 
-	grid_layout.addWidget(QtGui.QLabel("Comment"), 17, 0)
+        grid_layout.addWidget(QtGui.QLabel("Comment"), 17, 0)
 
-	self.comment = QtGui.QLineEdit()
-	self.comment.setToolTip(
-	    "Optional comment, eg. 'This AOV represents X'."
-	)
+        self.comment = QtGui.QLineEdit()
+        self.comment.setToolTip(
+            "Optional comment, eg. 'This AOV represents X'."
+        )
 
-	grid_layout.addWidget(self.comment, 17, 1)
+        grid_layout.addWidget(self.comment, 17, 1)
 
-	# =====================================================================
+        # =====================================================================
 
-	grid_layout.setRowMinimumHeight(18, 25)
+        grid_layout.setRowMinimumHeight(18, 25)
 
-	# =====================================================================
+        # =====================================================================
 
-	grid_layout.addWidget(QtGui.QLabel("File Path"), 19, 0)
+        grid_layout.addWidget(QtGui.QLabel("File Path"), 19, 0)
 
-	self.file_widget = widgets.FileChooser()
+        self.file_widget = widgets.FileChooser()
 
-	grid_layout.addWidget(self.file_widget, 19, 1)
+        grid_layout.addWidget(self.file_widget, 19, 1)
 
         if self._operation == DialogOperation.New:
             self.file_widget.field.textChanged.connect(self.validateFilePath)
@@ -639,20 +631,20 @@ class AOVDialog(QtGui.QDialog):
         else:
             self.file_widget.setEnabled(False)
 
-	# =====================================================================
+        # =====================================================================
 
-	layout.addLayout(grid_layout)
+        layout.addLayout(grid_layout)
 
         self.error_widget.setMessage("Enter a variable name.")
         layout.addWidget(self.error_widget)
 
-	widget.setLayout(layout)
+        widget.setLayout(layout)
 
-	return widget
+        return widget
 
 
     def _enableCreation(self, enable):
-	self._buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(enable)
+        self._buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(enable)
 
     def _enableComponents(self, enable):
         self.components_label.setEnabled(enable)
@@ -702,81 +694,81 @@ class AOVDialog(QtGui.QDialog):
 
 
     def validateVariableName(self):
-	self.error_widget.clearError(0)
+        self.error_widget.clearError(0)
 
-	variable_name = self.variable_name.text()
+        variable_name = self.variable_name.text()
 
-	self._variable_valid = True
+        self._variable_valid = True
 
         result = re.match("^\\w+$", variable_name)
 
         if result is None:
             self._variable_valid = False
 
-	if not self._variable_valid:
-	    self.error_widget.addError(0, "Invalid variable name")
+        if not self._variable_valid:
+            self.error_widget.addError(0, "Invalid variable name")
 
-	self.validateAllValues()
+        self.validateAllValues()
 
 
     def validateFilePath(self):
-	self.error_widget.clearError(1)
+        self.error_widget.clearError(1)
 
-	self._file_valid = True
+        self._file_valid = True
 
-	path = self.file_widget.getPath()
+        path = self.file_widget.getPath()
 
-	if path:
-	    dirname = os.path.dirname(path)
-	    file_name = os.path.basename(path)
+        if path:
+            dirname = os.path.dirname(path)
+            file_name = os.path.basename(path)
 
-	    if not dirname or not file_name:
-		self._file_valid = False
+            if not dirname or not file_name:
+                self._file_valid = False
 
-	    elif not os.path.splitext(file_name)[1]:
-		self._file_valid = False
+            elif not os.path.splitext(file_name)[1]:
+                self._file_valid = False
 
-	else:
-	    self._file_valid = False
+        else:
+            self._file_valid = False
 
-	if not self._file_valid:
-	    self.error_widget.addError(1, "Invalid file path")
+        if not self._file_valid:
+            self.error_widget.addError(1, "Invalid file path")
 
-	self.validateAllValues()
+        self.validateAllValues()
 
 
     def validateAllValues(self):
-	valid = True
+        valid = True
 
-	if not self._variable_valid:
-	    valid = False
+        if not self._variable_valid:
+            valid = False
 
-	if not self._file_valid:
-	    valid = False
+        if not self._file_valid:
+            valid = False
 
-	self.validInputSignal.emit(valid)
+        self.validInputSignal.emit(valid)
 
 
     def accept(self):
-	data = {
-	    "variable": self.variable_name.text(),
-	    "vextype": self.type_box.itemData(self.type_box.currentIndex())
-	}
+        data = {
+            "variable": self.variable_name.text(),
+            "vextype": self.type_box.itemData(self.type_box.currentIndex())
+        }
 
-	channel_name = self.channel_name.text()
+        channel_name = self.channel_name.text()
 
-	if channel_name:
-	   data["channel"] = channel_name
+        if channel_name:
+           data["channel"] = channel_name
 
-	data["quantize"] = self.quantize_box.itemData(self.quantize_box.currentIndex())
-	data["sfilter"] = self.sfilter_box.itemData(self.sfilter_box.currentIndex())
+        data["quantize"] = self.quantize_box.itemData(self.quantize_box.currentIndex())
+        data["sfilter"] = self.sfilter_box.itemData(self.sfilter_box.currentIndex())
 
-	pfilter = self.pfilter_widget.value()
+        pfilter = self.pfilter_widget.value()
 
-	if pfilter:
-	    data["pfilter"] = pfilter
+        if pfilter:
+            data["pfilter"] = pfilter
 
-	comment = self.comment.text()
+        comment = self.comment.text()
 
         if self.componentexport.isChecked():
             data["componentexport"] = True
@@ -792,28 +784,27 @@ class AOVDialog(QtGui.QDialog):
                 data["lightexport_select"] = self.light_select.text()
 
 
-	if comment:
-	    data["comment"] = comment
+        if comment:
+            data["comment"] = comment
 
-	new_aov = aov.AOV(data)
+        new_aov = aov.AOV(data)
 
-	self.new_aov = new_aov
+        self.new_aov = new_aov
 
-	writer = manager.AOVWriter()
+        writer = manager.AOVWriter()
 
-	writer.addAOV(new_aov)
+        writer.addAOV(new_aov)
 
-#	writer.writeToFile(
-#	    os.path.expandvars(self.file_widget.getPath())
-#	)
-
+#        writer.writeToFile(
+#            os.path.expandvars(self.file_widget.getPath())
+#        )
 
         self.newAOVSignal.emit(new_aov)
-	return super(AOVDialog, self).accept()
+        return super(AOVDialog, self).accept()
 
 
     def reject(self):
-	return super(AOVDialog, self).reject()
+        return super(AOVDialog, self).reject()
 
 
 class AOVInfoDialog(QtGui.QDialog):
