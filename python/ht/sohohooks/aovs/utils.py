@@ -2,6 +2,7 @@
 from PySide import QtCore, QtGui
 
 from ht.sohohooks.aovs.aov import AOV, AOVGroup, ALLOWABLE_VALUES
+from ht.sohohooks.aovs import data
 
 import hou
 
@@ -131,4 +132,63 @@ def getIconFromGroup(group):
         return QtGui.QIcon(group.icon)
 
     return QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/group.png")
+
+
+
+
+
+
+
+def _getItemMenuIndex(items, item):
+    idx = 0
+
+    for data in items:
+        if item == data[0]:
+            return idx
+
+        idx += 1
+
+    return 0
+
+
+def getVexTypeMenuIndex(vextype):
+    return _getItemMenuIndex(
+        data.VEXTYPE_MENU_ITEMS,
+        vextype
+    )
+
+def getQuantizeMenuIndex(quantize):
+    return _getItemMenuIndex(
+        data.QUANTIZE_MENU_ITEMS,
+        quantize
+    )
+
+def getSFilterMenuIndex(sfilter):
+    return _getItemMenuIndex(
+        data.SFILTER_MENU_ITEMS,
+        sfilter
+    )
+
+
+def getLightExportMenuIndex(lightexport):
+    return _getItemMenuIndex(
+        data.LIGHTEXPORT_MENU_ITEMS,
+        lightexport
+    )
+
+
+def findSelectedMantraNodes():
+    nodes = hou.selectedNodes()
+
+    mantra_type = hou.nodeType("Driver/ifd")
+
+    nodes = [node for node in nodes if node.type() == mantra_type]
+
+    if not nodes:
+        hou.ui.displayMessage(
+            "No mantra nodes selected.",
+            severity=hou.severityType.Error
+        )
+
+    return tuple(nodes)
 

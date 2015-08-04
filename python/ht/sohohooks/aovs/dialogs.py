@@ -15,7 +15,6 @@ class DialogOperation:
     Edit = 2
     Info = 3
 
-
 class DialogErrorWidget(QtGui.QWidget):
 
     def __init__(self, parent=None):
@@ -85,16 +84,15 @@ class DialogErrorWidget(QtGui.QWidget):
         self.display.setText(msg)
 
 
-class NewAOVGroupDialog(QtGui.QDialog):
+class AOVGroupDialog(QtGui.QDialog):
 
     validInputSignal = QtCore.Signal(bool)
     newAOVGroupSignal = QtCore.Signal(aov.AOVGroup)
 
-    def __init__(self, operation, parent=None):
-        super(NewAOVGroupDialog, self).__init__(parent)
+    def __init__(self, operation=DialogOperation.New, parent=None):
+        super(AOVGroupDialog, self).__init__(parent)
 
         self._operation = operation
-        self._operation = DialogOperation.Edit
 
         self.setStyleSheet(hou.ui.qtStyleSheet())
 
@@ -145,7 +143,7 @@ class NewAOVGroupDialog(QtGui.QDialog):
 
         self.setLayout(layout)
 
-        self.init_from_group(manager.findOrCreateSessionAOVManager().groups['default'])
+#        self.init_from_group(manager.findOrCreateSessionAOVManager().groups['default'])
 
     def init_from_group(self, group):
         self._group = group
@@ -351,15 +349,15 @@ class NewAOVGroupDialog(QtGui.QDialog):
             if self._operation == DialogOperation.New:
                 self.newAOVGroupSignal.emit(new_group)
 
-	return super(NewAOVGroupDialog, self).accept()
+	return super(AOVGroupDialog, self).accept()
 
-class NewAOVDialog(QtGui.QDialog):
+class AOVDialog(QtGui.QDialog):
 
     validInputSignal = QtCore.Signal(bool)
     newAOVSignal = QtCore.Signal(aov.AOV)
 
-    def __init__(self, operation, parent=None):
-	super(NewAOVDialog, self).__init__(parent)
+    def __init__(self, operation=DialogOperation.New, parent=None):
+	super(AOVDialog, self).__init__(parent)
 
         self._operation = operation
 
@@ -381,15 +379,18 @@ class NewAOVDialog(QtGui.QDialog):
 	self.setMinimumWidth(450)
 	self.setFixedHeight(525)
 
-
         if self._operation == DialogOperation.New:
             self.setWindowTitle("Create AOV")
+            self.setWindowIcon(
+                QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/create_aov.png")
+            )
+
         else:
             self.setWindowTitle("Edit AOV")
+            self.setWindowIcon(
+                QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/edit_aov.png")
+            )
 
-	self.setWindowIcon(
-	    QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/create_aov.png")
-	)
 
         self._buttonBox = QtGui.QDialogButtonBox(
             QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel
@@ -398,13 +399,27 @@ class NewAOVDialog(QtGui.QDialog):
         self._buttonBox.accepted.connect(self.accept)
         self._buttonBox.rejected.connect(self.reject)
 
+
+        if self._operation == DialogOperation.New:
+            self._enableCreation(False)
+
+            self.validInputSignal.connect(self._enableCreation)
+
+        else:
+            self._enableCreation(True)
+
+            self._buttonBox.addButton(QtGui.QDialogButtonBox.Reset)
+
+            reset_button = self._buttonBox.button(QtGui.QDialogButtonBox.Reset)
+            reset_button.clicked.connect(self.reset)
+
+
 	layout.addWidget(self._buttonBox)
 
-	self._enableCreation(False)
-
-	self.validInputSignal.connect(self._enableCreation)
-
 	self.setLayout(layout)
+
+    def reset(self):
+        self.initFromAOV(self._aov)
 
 
     def init_ui(self):
@@ -420,9 +435,12 @@ class NewAOVDialog(QtGui.QDialog):
 	self.variable_name = QtGui.QLineEdit()
 	grid_layout.addWidget(self.variable_name, 1, 1)
 
-	self.variable_name.setFocus()
+        if self._operation == DialogOperation.New:
+            self.variable_name.setFocus()
+            self.variable_name.textChanged.connect(self.validateVariableName)
 
-	self.variable_name.textChanged.connect(self.validateVariableName)
+        else:
+            self.variable_name.setEnabled(False)
 
 	# =====================================================================
 
@@ -437,7 +455,11 @@ class NewAOVDialog(QtGui.QDialog):
 		entry[0]
 	    )
 
-	self.type_box.setCurrentIndex(1)
+        if self._operation == DialogOperation.New:
+            self.type_box.setCurrentIndex(1)
+
+        else:
+            self.type_box.setEnabled(False)
 
 	grid_layout.addWidget(self.type_box, 2, 1)
 
@@ -506,10 +528,11 @@ class NewAOVDialog(QtGui.QDialog):
 
 	self.components = QtGui.QLineEdit()
 	self.components.setToolTip(
-	    "Shading component names."
+	    "Shading component names.  Leaving this field empty will use the components" \
+            " selected on the Mantra ROP."
 	)
 
-        self.components.setText("diffuse reflect coat refract volume")
+#        self.components.setText("diffuse reflect coat refract volume")
         self.components.setDisabled(True)
 
         self.componentexport.stateChanged.connect(self._enableComponents)
@@ -577,66 +600,9 @@ class NewAOVDialog(QtGui.QDialog):
 
         grid_layout.addWidget(QtGui.QLabel("Priority"), 15, 0)
 
-        self.priority = QtGui.QSpinBox()
+        self.priority = widgets.CustomSpinBox()
         self.priority.setMinimum(-1)
         self.priority.setValue(-1)
-
-        self.priority.setStyleSheet(
-"""
-
-QSpinBox {
-     border: 1px solid rgba(0,0,0,102);
-     border-radius: 1px;
-
-     background: rgb(19, 19, 19);
-
-     selection-color: rgb(0, 0, 0);
-     selection-background-color: rgb(184, 134, 32);
- }
-
- QSpinBox::up-button {
-     subcontrol-origin: border;
-     subcontrol-position: top right; /* position at the top right corner */
-
-     width: 16px; /* 16 + 2*1px border-width = 15px padding + 3px parent border */
-     border-width: 1px;
-
-    background: rgb(38, 38, 38);
-
-    width: 20px;
- }
-
- QSpinBox::down-button {
-     subcontrol-origin: border;
-     subcontrol-position: bottom right; /* position at bottom right corner */
-
-     width: 16px;
-     border-image: url(:/images/spindown.png) 1;
-     border-width: 1px;
-     border-top-width: 0;
-
-    background: rgb(38, 38, 38);
-    width: 20px;
- }
-
- QSpinBox::up-arrow
- {
-    image: url(:ht/rsc/icons/sohohooks/aovs/button_up.png) 1;
-    width: 14px;
-    height: 14px;
- }
-
- QSpinBox::down-arrow
- {
-    image: url(:ht/rsc/icons/sohohooks/aovs/button_down.png) 1;
-    width: 14px;
-    height: 14px;
-
- }
-
-
-"""
-        )
 
         grid_layout.addWidget(self.priority, 15, 1)
 
@@ -655,7 +621,6 @@ QSpinBox {
 
 	grid_layout.addWidget(self.comment, 17, 1)
 
-
 	# =====================================================================
 
 	grid_layout.setRowMinimumHeight(18, 25)
@@ -664,13 +629,15 @@ QSpinBox {
 
 	grid_layout.addWidget(QtGui.QLabel("File Path"), 19, 0)
 
-
 	self.file_widget = widgets.FileChooser()
 
 	grid_layout.addWidget(self.file_widget, 19, 1)
 
-	self.file_widget.field.textChanged.connect(self.validateFilePath)
+        if self._operation == DialogOperation.New:
+            self.file_widget.field.textChanged.connect(self.validateFilePath)
 
+        else:
+            self.file_widget.setEnabled(False)
 
 	# =====================================================================
 
@@ -699,6 +666,40 @@ QSpinBox {
 
         self.light_select_label.setEnabled(enable)
         self.light_select.setEnabled(enable)
+
+
+    def initFromAOV(self, aov):
+        self._aov = aov
+
+        self.variable_name.setText(aov.variable)
+
+        self.type_box.setCurrentIndex(utils.getVexTypeMenuIndex(aov.vextype))
+
+        if aov.channel is not None:
+            self.channel_name.setText(aov.channel)
+
+        if aov.quantize is not None:
+            self.quantize_box.setCurrentIndex(utils.getQuantizeMenuIndex(aov.quantize))
+
+        if aov.sfilter is not None:
+            self.sfilter_box.setCurrentIndex(utils.getSFilterMenuIndex(aov.sfilter))
+
+        if aov.pfilter is not None:
+            self.pfilter_widget.set(aov.pfilter)
+
+        if aov.componentexport:
+            self.componentexport.setChecked(True)
+
+            if aov.components:
+                self.components.setText(" ".join(aov.componenets))
+
+        if aov.comment:
+            self.comment.setText(aov.comment)
+
+
+        self.file_widget.setPath(aov.path)
+
+
 
     def validateVariableName(self):
 	self.error_widget.clearError(0)
@@ -808,11 +809,11 @@ QSpinBox {
 
 
         self.newAOVSignal.emit(new_aov)
-	return super(NewAOVDialog, self).accept()
+	return super(AOVDialog, self).accept()
 
 
     def reject(self):
-	return super(NewAOVDialog, self).reject()
+	return super(AOVDialog, self).reject()
 
 
 class AOVInfoDialog(QtGui.QDialog):
@@ -897,10 +898,12 @@ class AOVInfoDialog(QtGui.QDialog):
 
         active = QtGui.QApplication.instance().activeWindow()
 
-        self.dialog = NewAOVDialog(
+        self.dialog = AOVDialog(
             DialogOperation.Edit,
             active
         )
+
+        self.dialog.initFromAOV(self.aov)
 
         self.dialog.show()
 
@@ -994,7 +997,7 @@ class AOVGroupInfoDialog(QtGui.QDialog):
 
         active = QtGui.QApplication.instance().activeWindow()
 
-        self.dialog = NewAOVGroupDialog(
+        self.dialog = AOVGroupDialog(
             DialogOperation.Edit,
             active
         )

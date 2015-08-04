@@ -407,7 +407,6 @@ class BaseAOVTreeModel(QtCore.QAbstractItemModel):
 
             return None
 
-
         # TODO: type "Render", want to see regular Render_Time AND aov in group.
         if role == BaseAOVTreeModel.filterRole:
             if isinstance(node, FolderNode):
@@ -436,20 +435,10 @@ class AOVSelectModel(BaseAOVTreeModel):
         node = index.internalPointer()
         parent = node.parent
 
-#        if parent == self.root:
-#            return QtCore.Qt.ItemIsEnabled
-
         if isinstance(parent, AOVGroupNode):
             return QtCore.Qt.ItemIsEnabled
 
-#        if isinstance(node, AOVGroupNode):
-#            return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsDragEnabled
-
-
-#        if isinstance(node, AOVNode):
         return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsDragEnabled
-
-        return 0
 
     def mimeData(self, indexes):
 
@@ -566,8 +555,6 @@ class AOVsToAddModel(BaseAOVTreeModel):
 
         self.insertRows(pickle.loads(data.data("text/csv")))
 
-        print "need to expand?"
-
         return True
 
     def insertRows(self, data, position=None, parent=QtCore.QModelIndex()):
@@ -618,6 +605,14 @@ class AOVsToAddModel(BaseAOVTreeModel):
 	return True
 
 
+    # TODO: Update move left/right.
+    def clear(self):
+        self.beginResetModel()
+
+        self.root.removeAllChildren()
+
+        self.endResetModel()
+
 
 class AOVGroupEditListModel(QtCore.QAbstractListModel):
 
@@ -639,7 +634,6 @@ class AOVGroupEditListModel(QtCore.QAbstractListModel):
 
     def uncheckAll(self):
         self._checked = [False] * len(self._aovs)
-
 
     def rowCount(self, parent):
 	return len(self.aovs)
@@ -664,6 +658,7 @@ class AOVGroupEditListModel(QtCore.QAbstractListModel):
             self._checked[row] = not self._checked[row]
 
             self.dataChanged.emit(index, index)
+
             return True
 
     def flags(self, index):
@@ -710,8 +705,9 @@ class AOVInfoModel(QtCore.QAbstractTableModel):
             self._headers.append("Export Each Component")
             self._values.append(str(aov.componentexport))
 
-            self._headers.append("Export Components")
-            self._values.append(", ".join(aov.components))
+            if aov.components:
+                self._headers.append("Export Components")
+                self._values.append(", ".join(aov.components))
 
         if aov.lightexport is not None:
             self._headers.append("Light Exports")
@@ -818,10 +814,6 @@ class AOVGroupInfoModel(QtCore.QAbstractTableModel):
 
 
 
-
-
-
-
 class AOVMemberListModel(QtCore.QAbstractListModel):
 
     def __init__(self, parent=None):
@@ -851,8 +843,8 @@ class AOVMemberListModel(QtCore.QAbstractListModel):
     def flags(self, index):
 	return QtCore.Qt.ItemIsEnabled
 
-
-
     def initDataFromGroup(self, group):
+        self.beginResetModel()
         self._aovs = group.aovs
+        self.endResetModel()
 
