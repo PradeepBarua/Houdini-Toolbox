@@ -40,8 +40,6 @@ class AOVViewer(QtGui.QWidget):
 
         self._interface_name = None
 
-        self.manager = manager.findOrCreateSessionAOVManager()
-
         layout = QtGui.QVBoxLayout()
 
         splitter = QtGui.QSplitter()
@@ -76,9 +74,10 @@ class AOVViewer(QtGui.QWidget):
 
 
         # Really need a signal?  Maybe just refresh everything?
-        self.manager.initInterface()
-        self.manager.interface.aovAddedSignal.connect(self.select_widget.tree.insertAOV)
-        self.manager.interface.groupAddedSignal.connect(self.select_widget.tree.insertGroup)
+        manager.MANAGER.initInterface()
+        manager.MANAGER.interface.aovAddedSignal.connect(self.select_widget.tree.insertAOV)
+        manager.MANAGER.interface.groupAddedSignal.connect(self.select_widget.tree.insertGroup)
+        #dialogs.AOVGroupDialog.groupUpdatedSignal.connect(self.select_widget.tree.updateGroup)
 
 
         self.to_add_widget.tree.model().sourceModel().insertedItemsSignal.connect(

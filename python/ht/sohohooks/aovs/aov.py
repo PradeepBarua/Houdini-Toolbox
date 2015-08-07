@@ -25,10 +25,10 @@ class AOV(object):
 
     def __init__(self, data):
 
-        self._componentexport = False
+        self._componentexport = None
         self._components = []
         self._channel = None
-        self._comment = ""
+        self._comment = None
         self._lightexport = None
         self._lightexport_scope = "*"
         self._lightexport_select = "*"
@@ -73,14 +73,23 @@ class AOV(object):
     # SPECIAL METHODS
     # =========================================================================
 
+    def _key(self):
+            return (self.variable, self.channel)
+
     def __cmp__(self, other):
         if isinstance(other, self.__class__):
             return cmp(self.variable, other.variable)
 
         return -1
 
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self._key() == other._key()
+
+        return False
+
     def __hash__(self):
-        return hash(self.variable)
+        return hash("{}:{}".format(self.variable, str(self.channel)))
 
     def __repr__(self):
         return "<AOV {0} ({1})>".format(self.variable, self.vextype)
@@ -258,8 +267,10 @@ class AOV(object):
 
         if self.lightexport is not None:
             d["lightexport"] = self.lightexport
-            d["lightexport_scope"] = self.lightexport_scope
-            d["lightexport_select"] = self.lightexport_select
+
+            if self.lightexport != "per-category":
+                d["lightexport_scope"] = self.lightexport_scope
+                d["lightexport_select"] = self.lightexport_select
 
         if self.comment is not None:
             d["comment"] = self.comment

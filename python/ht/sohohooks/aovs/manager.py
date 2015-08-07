@@ -13,7 +13,8 @@ import json
 import os
 
 # Houdini Toolbox Imports
-from ht.sohohooks.aovs.aov import AOV, AOVGroup
+import ht.sohohooks.aovs.aov
+#from ht.sohohooks.aovs.aov import AOV, AOVGroup
 from ht.utils import convertFromUnicode
 
 # Houdini Imports
@@ -31,7 +32,9 @@ class AOVManager(object):
         self._groups = {}
         self._interface = None
 
-        self._initAOVs()
+#        self._initAOVs()
+
+        self._initFromFiles()
 
     def __repr__(self):
         return "<AOVManager>"
@@ -40,87 +43,56 @@ class AOVManager(object):
     def interface(self):
         return self._interface
 
-    def initInterface(self):
-        import ht.sohohooks.aovs.viewer
-        self._interface = ht.sohohooks.aovs.viewer.AOVViewerInterface()
-
-
     # TODO: Why is this a list of values?
     # Why is _aovs a dict???
     @property
     def aovs(self):
+        return self._aovs
+        return self._aovs.values()
         return sorted(self._aovs.values())
 
     @property
     def groups(self):
         return self._groups
 
-    def _initAOVs(self):
-        all_data = self._loadDataFromFiles()
 
-        self._createAOVs(all_data)
-        self._createGroups(all_data)
+    def _initFromFiles(self):
+        file_paths = _findAOVFiles()
 
+        readers = [AOVFileReader(file_path) for file_path in file_paths]
 
-    # TODO: Handle priority
-    def _createAOVs(self, all_data):
-        for data in all_data:
-            if "definitions" not in data:
-                continue
+        self.mergeReaders(readers)
 
-            for definition in data["definitions"]:
-                variable = definition["variable"]
+    def mergeReaders(self, readers):
+        for reader in readers:
+            for aov in reader.aovs:
+                variable_name = aov.variable
 
-                if variable in self._aovs:
-                    continue
+                if variable_name in self._aovs:
+                    if aov.priority > self._aovs[variable_name].priority:
+                        self.addAOV(aov)
 
-                if "path" in data:
-                    definition["path"] = data["path"]
+                else:
+                    self.addAOV(aov)
 
-                aov = AOV(definition)
+        for reader in readers:
+            for group in reader.groups:
+                self._initGroupMembers(group)
 
-                aov.installed = False
+                group_name = group.name
 
-                self.addAOV(aov)
+                if group_name in self.groups:
+                    if group.priority > self.groups[group_name].priority:
+                        self.addGroup(group)
 
-
-    # TODO: Handle priority
-    def _createGroups(self, all_data):
-        for data in all_data:
-            if "groups" not in data:
-                continue
-
-            for name, group_data in data["groups"].iteritems():
-                # Skip existing groups.
-                if name in self.groups:
-                    continue
-
-                group = AOVGroup(name)
-
-                if "include" in group_data:
-                    includes = group_data["include"]
-
-                    for include_name in includes:
-                        if include_name in self._aovs:
-                            group.aovs.append(self._aovs[include_name])
-
-                if "comment" in group_data:
-                    group.comment = group_data["comment"]
-
-                if "icon" in group_data:
-                    group.icon = os.path.expandvars(group_data["icon"])
-
-                if "path" in data:
-                    group.path = data["path"]
-
-                self.addGroup(group)
+                else:
+                    self.addGroup(group)
 
 
-    def _loadDataFromFiles(self):
-        paths = _findAOVFiles()
-
-        #return [self._loadDataFromFile(path) for path in paths]
-        return [AOVFileReader.readFromFile(path) for path in paths]
+    def _initGroupMembers(self, group):
+        for include in group.includes:
+            if include in self._aovs:
+                group.aovs.append(self._aovs[include])
 
 
     def addAOV(self, aov):
@@ -144,17 +116,23 @@ class AOVManager(object):
         self._aovs = {}
         self._groups = {}
 
+
+    def initInterface(self):
+        import ht.sohohooks.aovs.viewer
+        self._interface = ht.sohohooks.aovs.viewer.AOVViewerInterface()
+
+
     def reload(self):
         """Reload all definitions."""
-        self._initAOVs()
+        #self._initAOVs()
+        self._initFromFiles()
 
 
 
     def load(self, path):
-        data = [self._loadDataFromFile(path)]
+        readers = [AOVFileReader(path)]
 
-        self._createAOVs(data)
-        self._createGroups(data)
+        self.mergeReaders(readers)
 
     def save(self):
         pass
@@ -253,7 +231,9 @@ class AOVFileReader(object):
         for definition in data:
             definition["path"] = self.path
 
-            aov = AOV(definition)
+            aov = ht.sohohooks.aovs.aov.AOV(definition)
+
+            print aov, aov.channel
 
             self.aovs.append(aov)
 
@@ -263,14 +243,10 @@ class AOVFileReader(object):
             #if name in self.groups:
             #    continue
 
-            group = AOVGroup(name)
+            group = ht.sohohooks.aovs.aov.AOVGroup(name)
 
             if "include" in group_data:
                 group.includes.extend(group_data["include"])
-
-                #for include_name in includes:
-                    #if include_name in self._aovs:
-                        #group.aovs.append(self._aovs[include_name])
 
             if "comment" in group_data:
                 group.comment = group_data["comment"]
@@ -347,3 +323,10 @@ def findOrCreateSessionAOVManager(rebuild=False):
         manager = createSessionAOVManager()
 
     return manager
+
+
+# =============================================================================
+# GLOBALS
+# =============================================================================
+
+MANAGER = findOrCreateSessionAOVManager(rebuild=True)

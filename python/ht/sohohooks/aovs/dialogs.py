@@ -5,7 +5,8 @@ import re
 
 from PySide import QtCore, QtGui
 
-from ht.sohohooks.aovs import aov, data, manager, widgets, utils
+from ht.sohohooks.aovs import aov, data, widgets, utils
+from ht.sohohooks.aovs import manager
 
 import hou
 
@@ -88,6 +89,7 @@ class AOVGroupDialog(QtGui.QDialog):
 
     validInputSignal = QtCore.Signal(bool)
     newAOVGroupSignal = QtCore.Signal(aov.AOVGroup)
+    groupUpdatedSignal = QtCore.Signal(aov.AOVGroup)
 
     def __init__(self, operation=DialogOperation.New, parent=None):
         super(AOVGroupDialog, self).__init__(parent)
@@ -143,7 +145,6 @@ class AOVGroupDialog(QtGui.QDialog):
 
         self.setLayout(layout)
 
-#        self.init_from_group(manager.findOrCreateSessionAOVManager().groups['default'])
 
     def init_from_group(self, group):
         self._group = group
@@ -241,15 +242,13 @@ class AOVGroupDialog(QtGui.QDialog):
         msg = "Invalid group name"
 
         if group_name:
-            mgr = manager.findOrCreateSessionAOVManager()
-
             if ' ' in group_name:
                 self._group_name_valid = False
 
             elif not group_name.isalnum():
                 self._group_name_valid = False
 
-            elif group_name in mgr.groups:
+            elif group_name in manager.MANAGER.groups:
                 self._group_name_valid = False
                 msg = "Group already exists"
         else:
@@ -334,6 +333,11 @@ class AOVGroupDialog(QtGui.QDialog):
         else:
             new_group = aov.AOVGroup(group_name)
 
+        file_path = self.file_widget.getPath()
+
+        new_group.path = file_path
+        new_group.comment = self.comment.text()
+
         aovs = self.list.model().sourceModel().checkedAOVs()
 
         # TODO: Disable OK button if no items selected
@@ -348,6 +352,18 @@ class AOVGroupDialog(QtGui.QDialog):
 
             if self._operation == DialogOperation.New:
                 self.newAOVGroupSignal.emit(new_group)
+
+            else:
+                self.groupUpdatedSignal.emit(new_group)
+
+
+            writer = utils.AOVFileWriter()
+
+            writer.addGroup(new_group)
+
+            writer.writeToFile(
+                os.path.expandvars(self.file_widget.getPath())
+            )
 
         return super(AOVGroupDialog, self).accept()
 
@@ -760,17 +776,21 @@ class AOVDialog(QtGui.QDialog):
         channel_name = self.channel_name.text()
 
         if channel_name:
-           data["channel"] = channel_name
+            data["channel"] = channel_name
 
-        data["quantize"] = self.quantize_box.itemData(self.quantize_box.currentIndex())
-        data["sfilter"] = self.sfilter_box.itemData(self.sfilter_box.currentIndex())
+        quantize = self.quantize_box.itemData(self.quantize_box.currentIndex())
+
+        if not utils.isValueDefault(quantize, "quantize"):
+            data["quantize"] = quantize
+
+        sfilter = self.sfilter_box.itemData(self.sfilter_box.currentIndex())
+        if not utils.isValueDefault(sfilter, "sfilter"):
+            data["sfilter"] = sfilter
 
         pfilter = self.pfilter_widget.value()
 
-        if pfilter:
+        if not utils.isValueDefault(pfilter, "pfilter"):
             data["pfilter"] = pfilter
-
-        comment = self.comment.text()
 
         if self.componentexport.isChecked():
             data["componentexport"] = True
@@ -785,6 +805,7 @@ class AOVDialog(QtGui.QDialog):
                 data["lightexport_scope"] = self.light_mask.text()
                 data["lightexport_select"] = self.light_select.text()
 
+        comment = self.comment.text()
 
         if comment:
             data["comment"] = comment
@@ -792,14 +813,15 @@ class AOVDialog(QtGui.QDialog):
         new_aov = aov.AOV(data)
 
         self.new_aov = new_aov
+        new_aov.path = os.path.expandvars(self.file_widget.getPath())
 
         writer = utils.AOVFileWriter()
 
         writer.addAOV(new_aov)
 
-#        writer.writeToFile(
-#            os.path.expandvars(self.file_widget.getPath())
-#        )
+        writer.writeToFile(
+            os.path.expandvars(self.file_widget.getPath())
+        )
 
         self.newAOVSignal.emit(new_aov)
         return super(AOVDialog, self).accept()
@@ -822,13 +844,11 @@ class AOVInfoDialog(QtGui.QDialog):
 
         layout = QtGui.QVBoxLayout()
 
-        mgr = manager.findOrCreateSessionAOVManager()
-
         self.chooser = QtGui.QComboBox()
 
         start_idx = -1
 
-        for idx, aov in enumerate(mgr.aovs):
+        for idx, aov in enumerate(manager.MANAGER.aovs.values()):
             if aov.channel is not None:
                 label = "{0} ({1})".format(
                     aov.variable,
@@ -925,13 +945,11 @@ class AOVGroupInfoDialog(QtGui.QDialog):
 
         layout = QtGui.QVBoxLayout()
 
-        mgr = manager.findOrCreateSessionAOVManager()
-
         self.chooser = QtGui.QComboBox()
 
         start_idx = -1
 
-        for idx, group in enumerate(mgr.groups.values()):
+        for idx, group in enumerate(manager.MANAGER.groups.values()):
             label = group.name
 
             self.chooser.addItem(
@@ -1007,7 +1025,7 @@ class AOVGroupInfoDialog(QtGui.QDialog):
         table_model.initDataFromGroup(group)
         table_model.endResetModel()
 
-        member_model = self.members.model()
+        member_model = self.members.model().sourceModel()
         member_model.beginResetModel()
         member_model.initDataFromGroup(group)
         member_model.endResetModel()

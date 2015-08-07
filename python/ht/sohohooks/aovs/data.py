@@ -4,6 +4,16 @@
 # GLOBALS
 # =============================================================================
 
+DEFAULT_VALUES = {
+    "componentexport": False,
+    "lightexport": "",
+    "quantize": "half",
+    "pfilter": "",
+    "priority": -1,
+    "sfilter": "alpha",
+    "vextype": "vector",
+}
+
 LIGHTEXPORT_MENU_ITEMS = (
     ("", "No light exports"),
     ("per-category", "Export variable for each category"),

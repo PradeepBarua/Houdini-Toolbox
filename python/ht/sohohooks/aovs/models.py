@@ -11,7 +11,7 @@ import pickle
 # Houdini Toolbox Imports
 from ht.sohohooks.aovs import utils
 from ht.sohohooks.aovs.aov import AOV, AOVGroup
-from ht.sohohooks.aovs.manager import findOrCreateSessionAOVManager
+from ht.sohohooks.aovs import manager
 import ht.ui.icons
 
 # =============================================================================
@@ -347,6 +347,9 @@ class LeafFilterProxyModel(QtGui.QSortFilterProxyModel):
         self.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
         self.setFilterRole(BaseAOVTreeModel.filterRole)
 
+        self.setSortRole(BaseAOVTreeModel.sortRole)
+        self.setDynamicSortFilter(True)
+
     # =========================================================================
     # NON-PUBLIC METHODS
     # =========================================================================
@@ -411,6 +414,18 @@ class LeafFilterProxyModel(QtGui.QSortFilterProxyModel):
             self.mapToSource(index)
         )
 
+    def asdflessThan(self, left, right):
+        if not left.isValid():
+            return False
+
+        if not right.isValid():
+            return True
+
+        left_node = left.internalPointer()
+        right_node = right.internalPointer()
+
+        return left_node.name < right_node.name
+
 # =============================================================================
 # TREE MODELS
 # =============================================================================
@@ -418,6 +433,7 @@ class LeafFilterProxyModel(QtGui.QSortFilterProxyModel):
 class BaseAOVTreeModel(QtCore.QAbstractItemModel):
 
     filterRole = QtCore.Qt.UserRole
+    sortRole = QtCore.Qt.UserRole + 1
 
     def __init__(self, root, parent=None):
         super(BaseAOVTreeModel, self).__init__(parent)
@@ -541,27 +557,31 @@ class BaseAOVTreeModel(QtCore.QAbstractItemModel):
 
             return True
 
+        if role == self.sortRole:
+            if isinstance(node, AOVBaseNode):
+                return node.name
+
 
 class AOVSelectModel(BaseAOVTreeModel):
 
     def __init__(self, root, parent=None):
         super(AOVSelectModel, self).__init__(root, parent)
 
-        self.installed = set()
+        self._installed = set()
 
     def isInstalled(self, node):
-        if node in self.installed:
+        if node in self._installed:
             return True
 
         return False
 
     def markInstalled(self, items):
         for item in items:
-            self.installed.add(item)
+            self._installed.add(item)
 
     def markUninstalled(self, items):
         for item in items:
-            self.installed.remove(item)
+            self._installed.remove(item)
 
         parent = QtCore.QModelIndex()
         parentNode = self.getNode(parent)
@@ -667,6 +687,65 @@ class AOVSelectModel(BaseAOVTreeModel):
 
         return True
 
+    def updateGroup(self, group):
+        index = self.findNamedFolder("Groups")
+
+        parentNode = self.getNode(index)
+
+        row = 0
+        for child in parentNode.children:
+            if child.group == group:
+                idx = self.index(row, 0, index)
+
+                num_current_children = len(child.children)
+                num_new_children = len(group.aovs)
+
+                if num_current_children < num_new_children:
+                    num_to_add = num_new_children - num_current_children
+
+                    self.beginInsertRows(idx, num_current_children, num_current_children + num_to_add - 1)
+
+                    child.removeAllChildren()
+
+                    for aov in group.aovs:
+                        AOVNode(aov, child)
+
+                    self.endInsertRows()
+
+                elif num_current_children > num_new_children:
+                    num_to_remove = num_current_children - num_new_children
+
+                    self.beginRemoveRows(idx, num_current_children-num_to_remove, num_current_children-1)
+
+                    child.removeAllChildren()
+
+                    for aov in group.aovs:
+                        AOVNode(aov, child)
+
+                    self.endRemoveRows()
+
+                else:
+                    child.removeAllChildren()
+
+                    start_idx = self.index(0, 0, idx)
+                    end_idx = self.index(num_current_children-1, 0, idx)
+
+                    for aov in group.aovs:
+                        AOVNode(aov, child)
+
+                    self.dataChanged.emit(start_idx, end_idx)
+
+                if self.isInstalled(child):
+                    print "shit"
+
+                #self.dataChanged.emit(index, index)
+                break
+
+
+
+            row += 1
+
+
 # =============================================================================
 
 class AOVsToAddModel(BaseAOVTreeModel):
@@ -767,9 +846,7 @@ class AOVGroupEditListModel(QtCore.QAbstractListModel):
     def __init__(self, parent=None):
         super(AOVGroupEditListModel, self).__init__(parent)
 
-        manager = findOrCreateSessionAOVManager()
-
-        self._aovs = manager.aovs
+        self._aovs = manager.MANAGER.aovs.values()
         self._checked = [False] * len(self._aovs)
 
     @property

@@ -6,10 +6,13 @@
 
 # Python Imports
 from PySide import QtGui
+import json
+import os
 
 # Houdini Toolbox Imports
 from ht.sohohooks.aovs import data
 from ht.sohohooks.aovs.aov import AOV, AOVGroup, ALLOWABLE_VALUES
+from ht.utils import convertFromUnicode
 
 # Houdini Imports
 import hou
@@ -51,8 +54,30 @@ class AOVFileWriter(object):
         groups.update(group.data())
 
     def writeToFile(self, path):
-        with open(path, 'w') as f:
-            json.dump(self.data, f, indent=4)
+
+        if os.path.exists(path):
+
+            with open(path, 'r') as fp:
+                data = json.load(fp, object_hook=convertFromUnicode)
+
+                if "groups" in self.data:
+                    groups = data.setdefault("groups", {})
+
+                    for name, group_data in self.data["groups"].iteritems():
+                        groups[name] = group_data
+
+                if "definitions" in self.data:
+                    definitions = data.setdefault("definitions", [])
+
+                    for definition in self.data["definitions"]:
+                        definitions.append(definition)
+
+            with open(path, 'w') as fp:
+                json.dump(data, fp, indent=4)
+
+        else:
+            with open(path, 'w') as fp:
+                json.dump(self.data, fp, indent=4)
 
 
 # =============================================================================
@@ -247,6 +272,10 @@ def getVexTypeMenuIndex(vextype):
         data.VEXTYPE_MENU_ITEMS,
         vextype
     )
+
+
+def isValueDefault(value, field):
+    return data.DEFAULT_VALUES[field] == value
 
 
 def listAsString(elements):

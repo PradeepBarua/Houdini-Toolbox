@@ -7,9 +7,8 @@ import pickle
 
 import os
 
-from ht.sohohooks.aovs import models, utils
+from ht.sohohooks.aovs import manager, models, utils
 from ht.sohohooks.aovs.aov import AOV, AOVGroup
-from ht.sohohooks.aovs.manager import findOrCreateSessionAOVManager
 
 import ht.sohohooks.aovs.dialogs
 
@@ -59,6 +58,9 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
         self.setHeaderHidden(True)
         self.setDragEnabled(True)
 
+        self.setSortingEnabled(True)
+        self.sortByColumn(0, QtCore.Qt.AscendingOrder)
+
         QtCore.QObject.connect(
             self.selectionModel(),
             QtCore.SIGNAL("selectionChanged(QItemSelection, QItemSelection)"),
@@ -73,16 +75,15 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
     def initFromManager(self):
         self.root.removeAllChildren()
 
-        manager = findOrCreateSessionAOVManager()
-        manager.reload()
+        manager.MANAGER.reload()
 
         model = self.proxy_model.sourceModel()
         model.beginResetModel()
 
-        if manager.groups:
+        if manager.MANAGER.groups:
             groups_node = models.FolderNode("Groups", self.root)
 
-            groups = manager.groups
+            groups = manager.MANAGER.groups
 
             for group in groups.itervalues():
                 group_node = models.AOVGroupNode(group, groups_node)
@@ -90,12 +91,12 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
                 for aov in group.aovs:
                     models.AOVNode(aov, group_node)
 
-        if manager.aovs:
+        if manager.MANAGER.aovs:
             aovs_node = models.FolderNode("AOVs", self.root)
 
-            aovs = manager.aovs
+            aovs = manager.MANAGER.aovs
 
-            for aov in aovs:
+            for aov in aovs.itervalues():
                 models.AOVNode(aov, aovs_node)
 
         model.endResetModel()
@@ -226,6 +227,12 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
 
         menu.exec_(self.mapToGlobal(position))
 
+
+
+    def updateGroup(self, group):
+        self.model().sourceModel().updateGroup(group)
+
+
     def duplicateSelected(self):
         indexes = self.selectedIndexes()
 
@@ -235,8 +242,40 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
     def editSelected(self):
         indexes = self.selectedIndexes()
 
-        for index in indexes:
-            print index.row()
+        self.editSelectedAOVs()
+        self.editSelectedGroups()
+
+    def editSelectedAOVs(self):
+        aovs = [node.item for node in self.getSelectedNodes()
+                if isinstance(node.item, AOV)]
+
+        active = QtGui.QApplication.instance().activeWindow()
+
+        for aov in aovs:
+            dialog = ht.sohohooks.aovs.dialogs.AOVDialog(
+                ht.sohohooks.aovs.dialogs.DialogOperation.Edit,
+                active
+            )
+
+            dialog.initFromAOV(aov)
+            dialog.show()
+
+    def editSelectedGroups(self):
+        groups = [node.item for node in self.getSelectedNodes()
+                if isinstance(node.item, AOVGroup)]
+
+        active = QtGui.QApplication.instance().activeWindow()
+
+        for group in groups:
+            dialog = ht.sohohooks.aovs.dialogs.AOVGroupDialog(
+                ht.sohohooks.aovs.dialogs.DialogOperation.Edit,
+                active
+            )
+
+            dialog.groupUpdatedSignal.connect(self.updateGroup)
+
+            dialog.init_from_group(group)
+            dialog.show()
 
     def collapseSelected(self):
         indexes = self.selectedIndexes()
@@ -417,6 +456,8 @@ class AOVInstallBarWidget(QtGui.QWidget):
 class AvailableAOVsToolBar(QtGui.QToolBar):
 
     displayInfoSignal = QtCore.Signal()
+    editAOVSignal = QtCore.Signal()
+    editGroupSignal = QtCore.Signal()
 
     def __init__(self, parent=None):
         super(AvailableAOVsToolBar, self).__init__(parent)
@@ -520,35 +561,14 @@ class AvailableAOVsToolBar(QtGui.QToolBar):
 
         aov_dialog = ht.sohohooks.aovs.dialogs.AOVDialog(parent=active)
 
-        manager = findOrCreateSessionAOVManager()
-
         aov_dialog.newAOVSignal.connect(
-            manager.addAOV
+            manager.MANAGER.addAOV
         )
 
         aov_dialog.show()
 
     def editAOV(self):
-        active = QtGui.QApplication.instance().activeWindow()
-
-        aov_dialog = ht.sohohooks.aovs.dialogs.AOVDialog(
-            ht.sohohooks.aovs.dialogs.DialogOperation.Edit,
-            active
-        )
-
-        manager = findOrCreateSessionAOVManager()
-
-        aov = manager._aovs["direct_comp"]
-
-        aov_dialog.initFromAOV(aov)
-
-#        aov_dialog.newAOVSignal.connect(
-#            manager.addAOV
-#        )
-
-        aov_dialog.show()
-
-
+        self.editAOVSignal.emit()
 
     # ==========================================================================
 
@@ -557,52 +577,27 @@ class AvailableAOVsToolBar(QtGui.QToolBar):
 
         new_group_dialog = ht.sohohooks.aovs.dialogs.AOVGroupDialog(parent=active)
 
-        manager = findOrCreateSessionAOVManager()
-
         new_group_dialog.newAOVGroupSignal.connect(
-            manager.addGroup
+            manager.MANAGER.addGroup
         )
 
         new_group_dialog.show()
 
     def editGroup(self):
-        active = QtGui.QApplication.instance().activeWindow()
-
-        edit_group_dialog = ht.sohohooks.aovs.dialogs.AOVGroupDialog(
-            ht.sohohooks.aovs.dialogs.DialogOperation.Edit,
-            active
-        )
-
-        manager = findOrCreateSessionAOVManager()
-
-        group = manager.groups["debug"]
-
-        edit_group_dialog.init_from_group(group)
-
-#        edit_group_dialog.newAOVGroupSignal.connect(
-#            manager.addGroup
-#        )
-
-        edit_group_dialog.show()
-
-
+        self.editGroupSignal.emit()
 
     # ==========================================================================
 
     def loadJsonFile(self):
-#        b = hou.ui.curDesktop().createFloatingPane(
-#            hou.paneTabType.HelpBrowser
-#        )
-
-#        b.displayHelpPath("pypanel/aov_manager")
-        manager = findOrCreateSessionAOVManager()
-
-        path = hou.ui.selectFile()
+        path = hou.ui.selectFile(
+            pattern="*.json",
+            chooser_mode=hou.fileChooserMode.Read
+        )
 
         path = os.path.expandvars(path)
 
         if os.path.exists(path):
-            manager.load(path)
+            manager.MANAGER.load(path)
 
 
     def enableEditAOV(self, enable):
@@ -676,10 +671,18 @@ class AOVSelectWidget(QtGui.QWidget):
         self.enableInfoButtonSignal.connect(self.toolbar.enableInfoButton)
 
         self.toolbar.displayInfoSignal.connect(self.displayInfo)
+        self.toolbar.editAOVSignal.connect(self.editAOV)
+        self.toolbar.editGroupSignal.connect(self.editGroup)
 
 
     def displayInfo(self):
         self.tree.showInfo()
+
+    def editAOV(self):
+        self.tree.editSelectedAOVs()
+
+    def editGroup(self):
+        self.tree.editSelectedGroups()
 
     def getSelectedNodes(self):
         return self.tree.getSelectedNodes()
@@ -1030,13 +1033,11 @@ class AOVsToAddToolBar(QtGui.QToolBar):
 
         mantra = nodes[0]
 
-        manager = findOrCreateSessionAOVManager()
-
         items = []
 
         if mantra.parm("auto_aovs") is not None:
             value = mantra.evalParm("auto_aovs")
-            items.extend(manager.getAOVsFromString(value))
+            items.extend(manager.MANAGER.getAOVsFromString(value))
 
         self.installSignal.emit(items)
 
@@ -1049,10 +1050,8 @@ class AOVsToAddToolBar(QtGui.QToolBar):
             self.parent().tree.model().sourceModel().items
         )
 
-        manager = findOrCreateSessionAOVManager()
-
         new_group_dialog.newAOVGroupSignal.connect(
-            manager.addGroup
+            manager.MANAGER.addGroup
         )
 
         new_group_dialog.show()
@@ -1224,11 +1223,13 @@ class NewGroupAOVListWidget(QtGui.QListView):
         model = models.AOVGroupEditListModel()
 
         self.proxy_model = QtGui.QSortFilterProxyModel()
-
         self.proxy_model.setSourceModel(model)
+        self.proxy_model.sort(QtCore.Qt.AscendingOrder)
+
         self.setModel(self.proxy_model)
 
         self.setAlternatingRowColors(True)
+
 
 
 class GroupMemberListWidget(QtGui.QListView):
@@ -1238,7 +1239,11 @@ class GroupMemberListWidget(QtGui.QListView):
 
         model = models.AOVMemberListModel()
 
-        self.setModel(model)
+        self.proxy_model = QtGui.QSortFilterProxyModel()
+        self.proxy_model.setSourceModel(model)
+        self.proxy_model.sort(QtCore.Qt.AscendingOrder)
+
+        self.setModel(self.proxy_model)
 
         self.setAlternatingRowColors(True)
 
