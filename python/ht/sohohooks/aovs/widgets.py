@@ -100,7 +100,8 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
 
         model.endResetModel()
 
-        self.expandAll()
+        # Expand the main folders but not the groups.
+        self.expandToDepth(0)
 
     def insertAOV(self, aov):
         self.model().sourceModel().insertAOV(aov)
@@ -346,10 +347,10 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
         super(AOVSelectTreeWidget, self).keyPressEvent(event)
 
 
-class AOVMoveWidget(QtGui.QWidget):
+class AOVInstallBarWidget(QtGui.QWidget):
 
     def __init__(self, parent=None):
-        super(AOVMoveWidget, self).__init__(parent)
+        super(AOVInstallBarWidget, self).__init__(parent)
 
         layout = QtGui.QVBoxLayout()
 
@@ -625,7 +626,6 @@ class AOVSelectWidget(QtGui.QWidget):
 
     reloadSignal = QtCore.Signal()
 
-
     def __init__(self, parent=None):
         super(AOVSelectWidget, self).__init__(parent)
 
@@ -658,15 +658,15 @@ class AOVSelectWidget(QtGui.QWidget):
 
         layout.addLayout(tree_layout)
 
-        self.move = AOVMoveWidget()
-        layout.addWidget(self.move)
+        self.install_bar = AOVInstallBarWidget()
+        layout.addWidget(self.install_bar)
 
         self.setLayout(layout)
 
-        self.move.to_left.clicked.connect(self.emitRemoveSignal)
-        self.move.to_right.clicked.connect(self.emitInstallSignal)
+        self.install_bar.to_left.clicked.connect(self.emitRemoveSignal)
+        self.install_bar.to_right.clicked.connect(self.emitInstallSignal)
 
-        self.move.reload.clicked.connect(self.emitReloadSignal)
+        self.install_bar.reload.clicked.connect(self.emitReloadSignal)
 
         # Update Toolbar after data changed.
         self.tree.selectionChangedSignal.connect(self.checkEditable)
@@ -717,6 +717,13 @@ class AOVSelectWidget(QtGui.QWidget):
         self.enableEditAOVSignal.emit(enable_edit_aov)
         self.enableEditAOVGroupSignal.emit(enable_edit_group)
         self.enableInfoButtonSignal.emit(enable_edit_aov or enable_edit_group)
+
+    def markItemsInstalled(self, items):
+        self.tree.model().sourceModel().markInstalled(items)
+
+    def markItemsUninstalled(self, items):
+        self.tree.model().sourceModel().markUninstalled(items)
+
 
 
 # =============================================================================

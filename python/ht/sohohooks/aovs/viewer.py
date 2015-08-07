@@ -70,27 +70,23 @@ class AOVViewer(QtGui.QWidget):
         self.to_add_widget.updateEnabledSignal.connect(self.checkNodeAdded)
 
         # Left/right button enabling/disabling.
-        self.selectedAOVContainedSignal.connect(self.select_widget.move.enableHandler)
-        self.invalidAOVSelectedSignal.connect(self.select_widget.move.disableHandler)
+        self.selectedAOVContainedSignal.connect(self.select_widget.install_bar.enableHandler)
+        self.invalidAOVSelectedSignal.connect(self.select_widget.install_bar.disableHandler)
 
+
+
+        # Really need a signal?  Maybe just refresh everything?
         self.manager.initInterface()
+        self.manager.interface.aovAddedSignal.connect(self.select_widget.tree.insertAOV)
+        self.manager.interface.groupAddedSignal.connect(self.select_widget.tree.insertGroup)
 
-        self.manager.interface.aovAddedSignal.connect(
-            self.select_widget.tree.insertAOV
+
+        self.to_add_widget.tree.model().sourceModel().insertedItemsSignal.connect(
+            self.select_widget.markItemsInstalled
         )
-
-        self.manager.interface.groupAddedSignal.connect(
-            self.select_widget.tree.insertGroup
+        self.to_add_widget.tree.model().sourceModel().removedItemsSignal.connect(
+            self.select_widget.markItemsUninstalled
         )
-
-        self.to_add_widget.tree.model().sourceModel().insertedItemsSignal.connect(self.foo)
-        self.to_add_widget.tree.model().sourceModel().removedItemsSignal.connect(self.bar)
-
-    def foo(self, items):
-        self.select_widget.tree.model().sourceModel().install(items)
-
-    def bar(self, items):
-        self.select_widget.tree.model().sourceModel().uninstall(items)
 
 
     @property
@@ -101,7 +97,6 @@ class AOVViewer(QtGui.QWidget):
     def interface_name(self, name):
         self._interface_name = name
 
-    # TODO: Dim out added nodes...
     def checkNodeAdded(self):
         nodes = self.select_widget.getSelectedNodes()
 
@@ -121,7 +116,10 @@ class AOVViewer(QtGui.QWidget):
 class AOVViewerInterface(QtCore.QObject):
 
     aovAddedSignal = QtCore.Signal(aov.AOV)
+    aovUpdatedSignal = QtCore.Signal(aov.AOV)
+
     groupAddedSignal = QtCore.Signal(aov.AOVGroup)
+    groupUpdatedSignal = QtCore.Signal(aov.AOVGroup)
 
     def __init__(self, parent=None):
         super(AOVViewerInterface, self).__init__(parent)

@@ -449,8 +449,10 @@ class AOVDialog(QtGui.QDialog):
         self.type_box = QtGui.QComboBox()
 
         for entry in data.VEXTYPE_MENU_ITEMS:
+            icon = utils.getIconFromVexType(entry[0])
+
             self.type_box.addItem(
-                QtGui.QIcon(entry[2]),
+                icon,
                 entry[1],
                 entry[0]
             )
@@ -791,7 +793,7 @@ class AOVDialog(QtGui.QDialog):
 
         self.new_aov = new_aov
 
-        writer = manager.AOVWriter()
+        writer = utils.AOVFileWriter()
 
         writer.addAOV(new_aov)
 
@@ -1009,6 +1011,3 @@ class AOVGroupInfoDialog(QtGui.QDialog):
         member_model.beginResetModel()
         member_model.initDataFromGroup(group)
         member_model.endResetModel()
-
-
-

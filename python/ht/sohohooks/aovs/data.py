@@ -1,24 +1,14 @@
+"""This module contains data for UI menu items."""
 
+# =============================================================================
+# GLOBALS
+# =============================================================================
 
-VEXTYPE_MENU_ITEMS = (
-    ("float", "Float Type", ":ht/rsc/icons/sohohooks/aovs/float.png"),
-    ("vector", "Vector Type", ":ht/rsc/icons/sohohooks/aovs/vector.png"),
-    ("vector4", "Vector4 Type", ":ht/rsc/icons/sohohooks/aovs/vector4.png"),
-    ("unitvector", "Unit Vector Type", ":ht/rsc/icons/sohohooks/aovs/unitvector.png"),
-)
-
-QUANTIZE_MENU_ITEMS = (
-    ("8", "8 bit integer"),
-    ("16", "16 bit integer"),
-    ("half", "16 bit float"),
-    ("float", "32 bit float"),
-)
-
-
-SFILTER_MENU_ITEMS = (
-    ("alpha", "Opacity Filtering"),
-    ("fullopacity", "Full Opacity Filtering"),
-    ("closest", "Closest Surface"),
+LIGHTEXPORT_MENU_ITEMS = (
+    ("", "No light exports"),
+    ("per-category", "Export variable for each category"),
+    ("per-light", "Export variable for each light"),
+    ("single", "Merge all lights into single channel"),
 )
 
 PFILTER_MENU_ITEMS = (
@@ -41,10 +31,22 @@ PFILTER_MENU_ITEMS = (
     ("Object With Most Pixel Coverage (no filtering)", "minmax idcover"),
 )
 
-LIGHTEXPORT_MENU_ITEMS = (
-    ("", "No light exports"),
-    ("per-category", "Export variable for each category"),
-    ("per-light", "Export variable for each light"),
-    ("single", "Merge all lights into single channel"),
+QUANTIZE_MENU_ITEMS = (
+    ("8", "8 bit integer"),
+    ("16", "16 bit integer"),
+    ("half", "16 bit float"),
+    ("float", "32 bit float"),
 )
 
+SFILTER_MENU_ITEMS = (
+    ("alpha", "Opacity Filtering"),
+    ("fullopacity", "Full Opacity Filtering"),
+    ("closest", "Closest Surface"),
+)
+
+VEXTYPE_MENU_ITEMS = (
+    ("float", "Float Type"),
+    ("vector", "Vector Type"),
+    ("vector4", "Vector4 Type"),
+    ("unitvector", "Unit Vector Type"),
+)

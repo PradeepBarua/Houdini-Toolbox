@@ -1,43 +1,31 @@
+"""This module contains custom PySide models and associated functions."""
 
 # =============================================================================
 # IMPORTS
 # =============================================================================
 
-# Standard Library Imports
+#Python Imports
 from PySide import QtCore, QtGui
-
 import pickle
 
-import ht.ui.icons
-
+# Houdini Toolbox Imports
+from ht.sohohooks.aovs import utils
 from ht.sohohooks.aovs.aov import AOV, AOVGroup
 from ht.sohohooks.aovs.manager import findOrCreateSessionAOVManager
-from ht.sohohooks.aovs import utils
-
-
-_ROW_TITLES = (
-    "VEX Variable (variable)",
-    "VEX Type (vextype)",
-    "Channel Name (channel)",
-    "Different File (planefile)",
-    "Quantize (quantize)",
-    "Sample Filter (sfilter)",
-    "Pixel Filter (pfilter)",
-    "Light Exports (lightexport)",
-    "Light Mask (lightexport_scope)",
-    "Light Selection (lightexport_select)",
-)
-
+import ht.ui.icons
 
 # =============================================================================
 # TREE NODES
 # =============================================================================
 
-
 class TreeNode(object):
-    """The base node in a TreeListView.
+    """The base tree node class for use in AOV and group display.
 
     """
+
+    # =========================================================================
+    # CONSTRUCTORS
+    # =========================================================================
 
     def __init__(self, parent=None):
         self._children = []
@@ -46,6 +34,10 @@ class TreeNode(object):
         # If we have a parent, add this node to the parent's list of children.
         if parent is not None:
             parent.addChild(self)
+
+    # =========================================================================
+    # SPEACIAL METHODS
+    # =========================================================================
 
     # TODO: FIX THIS to be less ghetto
     def __cmp__(self, node):
@@ -56,6 +48,10 @@ class TreeNode(object):
 
     def __repr__(self):
         return "<{0} {1}>".format(self.__class__.__name__, self.name)
+
+    # =========================================================================
+    # PROPERTIES
+    # =========================================================================
 
     @property
     def children(self):
@@ -82,96 +78,150 @@ class TreeNode(object):
         if self.parent is not None:
             return self.parent.children.index(self)
 
-    def addChild(self, child):
-        self._children.append(child)
+    # =========================================================================
+    # METHODS
+    # =========================================================================
 
-        child.parent = self
+    def addChild(self, node):
+        """Add a node as a child of this node."""
+        self._children.append(node)
 
-    def insertChild(self, position, child):
+        node.parent = self
+
+    def insertChild(self, position, node):
+        """Insert a node as a child of this node in a particular position."""
         if position < 0 or position > len(self.children):
-            return False
+            raise ValueError("Position out of range")
 
-        self.children.insert(position, child)
-        child.parent = self
-
-        return True
+        self.children.insert(position, node)
+        node.parent = self
 
     def removeAllChildren(self):
+        """Remove all children of this node."""
         self._children = []
 
     def removeChild(self, position):
+        """Remove the child node at a particular position."""
         if position < 0 or position > len(self.children):
-            return False
+            raise ValueError("Position out of range")
 
+        # Remove the child node at the specified position and remove the parent
+        # reference.
         child = self.children.pop(position)
-
         child.parent = None
 
-        return True
-
     def tooltip(self):
-        return
+        """Return a tooltip for the node."""
+        pass
 
+# =============================================================================
 
 class FolderNode(TreeNode):
+    """Tree node representing a folder.
+
+    """
+
+    # =========================================================================
+    # CONSTRUCTORS
+    # =========================================================================
+
     def __init__(self, name, parent=None):
         super(FolderNode, self).__init__(parent)
 
         self._name = name
 
+    # =========================================================================
+    # PROPERTIES
+    # =========================================================================
+
     @property
     def icon(self):
+        """Node icon."""
         return QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/folder.png")
 
     @property
     def items(self):
+        """Items belonging to this nodes children."""
         return [child.item for child in self.children]
 
     @property
     def name(self):
+        """The display name"""
         return self._name
 
+# =============================================================================
 
 class AOVBaseNode(TreeNode):
+    """Base node for AOV related items.
+
+    """
+
+    # =========================================================================
+    # CONSTRUCTORS
+    # =========================================================================
+
     def __init__(self, item, parent=None):
         super(AOVBaseNode, self).__init__(parent)
 
         self._item = item
 
+    # =========================================================================
+    # PROPERTIES
+    # =========================================================================
+
     @property
     def item(self):
+        """AOV related item represented by this node."""
         return self._item
 
     @property
-    def name(self):
-        return self._item.name
-
-    @property
     def path(self):
+        """File path of this nodes item."""
         return self._item.filePath
 
+# =============================================================================
 
 class AOVNode(AOVBaseNode):
+    """Node representing an AOV.
+
+    """
+
+    # =========================================================================
+    # CONSTRUCTORS
+    # =========================================================================
+
     def __init__(self, aov, parent=None):
         super(AOVNode, self).__init__(aov, parent)
 
+    # =========================================================================
+    # PROPERTIES
+    # =========================================================================
+
     @property
     def icon(self):
+        """Icon for this AOV."""
         return utils.getIconFromVexType(self.item.vextype)
 
     @property
     def name(self):
+        """The display name for this node."""
         return self.item.variable
 
     @property
     def aov(self):
+        """The AOV object represented by this node."""
         return self.item
 
-    @property
-    def group(self):
-        return self.parent.group
+    #@property
+    #def group(self):
+        #return self.parent.group
+
+    # =========================================================================
+    # METHODS
+    # =========================================================================
 
     def tooltip(self):
+        """Return a tooltip for the AOV."""
         aov = self.aov
 
         lines = [
@@ -192,8 +242,15 @@ class AOVNode(AOVBaseNode):
             lines.append("Pixel Filter: {0}".format(aov.pfilter))
 
         if aov.componentexport:
-            lines.append("\nExport variable for each component: {0}".format(aov.componentexport))
-            lines.append("Export Components: {0}".format(", ".join(aov.components)))
+            lines.append(
+                "\nExport variable for each component: {0}".format(
+                    aov.componentexport
+                )
+            )
+
+            lines.append(
+                "Export Components: {0}".format(", ".join(aov.components))
+            )
 
         if aov.lightexport is not None:
             lines.append("\nLight Exports: {0}".format(aov.lightexport))
@@ -211,20 +268,45 @@ class AOVNode(AOVBaseNode):
 
         return '\n'.join(lines)
 
+# =============================================================================
 
 class AOVGroupNode(AOVBaseNode):
+    """Node representing an AOVGroup.
+
+    """
+
+    # =========================================================================
+    # CONSTRUCTORS
+    # =========================================================================
+
     def __init__(self, group, parent=None):
         super(AOVGroupNode, self).__init__(group, parent)
 
+    # =========================================================================
+    # PROPERTIES
+    # =========================================================================
+
     @property
     def icon(self):
+        """Icon for this AOV group."""
         return utils.getIconFromGroup(self.group)
 
     @property
     def group(self):
+        """The AOVGroup object represented by this node."""
         return self.item
 
+    @property
+    def name(self):
+        """The group name for this node."""
+        return self.group.name
+
+    # =========================================================================
+    # METHODS
+    # =========================================================================
+
     def tooltip(self):
+        """Return a tooltip for the AOV group."""
         group = self.group
 
         lines = ["Name: {0}".format(group.name)]
@@ -243,72 +325,91 @@ class AOVGroupNode(AOVBaseNode):
 
         return '\n'.join(lines)
 
+
 # =============================================================================
 # PROXY MODELS
 # =============================================================================
 
-
 class LeafFilterProxyModel(QtGui.QSortFilterProxyModel):
+    """Custom QSortFilterProxyModel designed to filter based on various
+    TreeNode child types.
 
+    """
+
+    # =========================================================================
+    # CONSTRUCTORS
+    # =========================================================================
 
     def __init__(self, parent=None):
         super(LeafFilterProxyModel, self).__init__(parent)
 
-
+        # Make filter case insensitive.
         self.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
         self.setFilterRole(BaseAOVTreeModel.filterRole)
 
-    def filterAcceptsRow(self, row_num, source_parent):
-        if self.filter_accepts_row_itself(row_num, source_parent):
-            return True
+    # =========================================================================
+    # NON-PUBLIC METHODS
+    # =========================================================================
 
-        # Traverse up all the way to root and check if any of them match
-        if self.filter_accepts_any_parent(source_parent):
-            return True
+    def _filter_accepts_any_parent(self, parent):
+        """Traverse to the root node and check if any of the ancestors
+        match the filter.
 
-        return self.has_accepted_children(row_num, source_parent)
+        """
+        while parent.isValid():
+            if self._filter_accepts_row_itself(parent.row(), parent.parent()):
+                return True
 
-    def filter_accepts_row_itself(self, row_num, source_parent):
+            parent = parent.parent()
+
+        return False
+
+    def _filter_accepts_row_itself(self, row_num, source_parent):
         return super(LeafFilterProxyModel, self).filterAcceptsRow(
             row_num,
             source_parent
         )
 
-    def filter_accepts_any_parent(self, parent):
-        ''' Traverse to the root node and check if any of the
-            ancestors match the filter
-        '''
-        while parent.isValid():
-            if self.filter_accepts_row_itself(parent.row(), parent.parent()):
-                return True
-            parent = parent.parent()
+    def _has_accepted_children(self, row_num, parent):
+        """Starting from the current node as root, traverse all the
+        descendants and test if any of the children match.
 
-        return False
-
-    def has_accepted_children(self, row_num, parent):
-        ''' Starting from the current node as root, traverse all
-            the descendants and test if any of the children match
-        '''
+        """
         model = self.sourceModel()
         source_index = model.index(row_num, 0, parent)
 
-        children_count =  model.rowCount(source_index)
+        num_children = model.rowCount(source_index)
 
-        for i in xrange(children_count):
+        for i in range(num_children):
             if self.filterAcceptsRow(i, source_index):
                 return True
 
         return False
 
+    # =========================================================================
+    # METHODS
+    # =========================================================================
+
+    def filterAcceptsRow(self, row_num, source_parent):
+        """Check if this fiilter will accept the row."""
+        if self._filter_accepts_row_itself(row_num, source_parent):
+            return True
+
+        # Traverse up all the way to root and check if any of them match
+        if self._filter_accepts_any_parent(source_parent):
+            return True
+
+        return self._has_accepted_children(row_num, source_parent)
 
     def insertRows(self, data, position=None, parent=QtCore.QModelIndex()):
         return self.sourceModel().insertRows(data)
 
+    # TODO: sigh....
     def removeRows(self, index):
+        """Remove the row at an index."""
         return self.sourceModel().removeRows(
             self.mapToSource(index)
         )
-
 
 # =============================================================================
 # TREE MODELS
@@ -404,6 +505,14 @@ class BaseAOVTreeModel(QtCore.QAbstractItemModel):
         if role == QtCore.Qt.ToolTipRole:
             return node.tooltip()
 
+        if role == QtCore.Qt.FontRole:
+            if isinstance(parent, AOVGroupNode):
+                font = QtGui.QFont()
+                font.setItalic(True)
+                return font
+
+            return None
+
         if role == QtCore.Qt.ForegroundRole:
             brush = QtGui.QBrush()
 
@@ -415,10 +524,8 @@ class BaseAOVTreeModel(QtCore.QAbstractItemModel):
                 brush.setColor(QtGui.QColor(131, 131, 131))
                 return brush
 
-
             return None
 
-        # TODO: type "Render", want to see regular Render_Time AND aov in group.
         if role == BaseAOVTreeModel.filterRole:
             if isinstance(node, FolderNode):
                 return True
@@ -448,11 +555,11 @@ class AOVSelectModel(BaseAOVTreeModel):
 
         return False
 
-    def install(self, items):
+    def markInstalled(self, items):
         for item in items:
             self.installed.add(item)
 
-    def uninstall(self, items):
+    def markUninstalled(self, items):
         for item in items:
             self.installed.remove(item)
 
@@ -463,22 +570,6 @@ class AOVSelectModel(BaseAOVTreeModel):
             self.index(0,0, parent),
             self.index(len(parentNode.children)-1 ,0, parent)
         )
-
-
-        return
-        try:
-            self.installed.remove(node)
-
-            parent = QtCore.QModelIndex()
-            parentNode = self.getNode(parent)
-
-            self.dataChanged.emit(
-                self.index(0,0, parent),
-                self.index(len(parentNode.children)-1 ,0, parent)
-            )
-
-        except KeyError:
-            pass
 
     def flags(self, index):
         if not index.isValid():
@@ -493,7 +584,6 @@ class AOVSelectModel(BaseAOVTreeModel):
         return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsDragEnabled
 
     def mimeData(self, indexes):
-
         nodes = [self.getNode(index) for index in indexes]
 
         items = []
@@ -556,7 +646,6 @@ class AOVSelectModel(BaseAOVTreeModel):
 
         return True
 
-
     def insertGroup(self, group):
         index = self.findNamedFolder("Groups")
 
@@ -589,7 +678,7 @@ class AOVsToAddModel(BaseAOVTreeModel):
 
     def flags(self, index):
         if not index.isValid():
-            return None
+            return
 
         node = index.internalPointer()
         parent = node.parent
@@ -600,8 +689,7 @@ class AOVsToAddModel(BaseAOVTreeModel):
         if isinstance(parent, AOVGroupNode):
             return QtCore.Qt.ItemIsEnabled
 
-        return 0
-
+        return
 
     def dropMimeData(self, data, action, row, column, parent):
         if not data.hasFormat("text/csv"):
@@ -648,7 +736,9 @@ class AOVsToAddModel(BaseAOVTreeModel):
 
         return True
 
-    # TODO: make better?  Accept multiple rows perhaps?
+
+    # TODO: make better?  Accept multiple rows perhaps? No be ghetto and fake
+    # override function def
     def removeRows(self, idx, parent=QtCore.QModelIndex()):
         parentNode = self.getNode(parent)
 
@@ -678,8 +768,8 @@ class AOVGroupEditListModel(QtCore.QAbstractListModel):
         super(AOVGroupEditListModel, self).__init__(parent)
 
         manager = findOrCreateSessionAOVManager()
-        self._aovs = manager.aovs
 
+        self._aovs = manager.aovs
         self._checked = [False] * len(self._aovs)
 
     @property
@@ -777,7 +867,6 @@ class AOVInfoModel(QtCore.QAbstractTableModel):
             self._headers.append("Light Selection")
             self._values.append(aov.lightexport_select)
 
-
         if aov.priority > -1:
             self._headers.append("Priority")
             self._values.append(aov.priority)
@@ -844,7 +933,6 @@ class AOVGroupInfoModel(QtCore.QAbstractTableModel):
             self._headers.append("File Path")
             self._values.append(group.path)
 
-
     def flags(self, index):
         return QtCore.Qt.ItemIsEnabled
 
@@ -869,7 +957,6 @@ class AOVGroupInfoModel(QtCore.QAbstractTableModel):
                 return self._headers[row]
             else:
                 return self._values[row]
-
 
 
 class AOVMemberListModel(QtCore.QAbstractListModel):

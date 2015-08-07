@@ -19,6 +19,8 @@ ALLOWABLE_VALUES = {
 # TODO: add some sort of priority, so you can control how things are overriden
 # in the case of conflicts.
 
+# TODO: Handle hidden plane parms?
+
 class AOV(object):
 
     def __init__(self, data):
@@ -559,6 +561,8 @@ class AOVGroup(object):
         self._path = None
         self._priority = -1
 
+        self._includes = []
+
     # =========================================================================
     # SPECIAL METHODS
     # =========================================================================
@@ -603,6 +607,10 @@ class AOVGroup(object):
     @icon.setter
     def icon(self, icon):
         self._icon = icon
+
+    @property
+    def includes(self):
+        return self._includes
 
     @property
     def path(self):
@@ -757,6 +765,3 @@ def _callPreDefPlane(data, wrangler, cam, now):
         data.get("planefile"),
         data.get("lightexport")
     )
-
-
-

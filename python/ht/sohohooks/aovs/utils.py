@@ -1,76 +1,83 @@
+"""This module contains support functions for AOVs."""
 
-from PySide import QtCore, QtGui
+# =============================================================================
+# IMPORTS
+# =============================================================================
 
-from ht.sohohooks.aovs.aov import AOV, AOVGroup, ALLOWABLE_VALUES
+# Python Imports
+from PySide import QtGui
+
+# Houdini Toolbox Imports
 from ht.sohohooks.aovs import data
+from ht.sohohooks.aovs.aov import AOV, AOVGroup, ALLOWABLE_VALUES
 
+# Houdini Imports
 import hou
 
-def listAsString(elements):
-    names = []
 
-    for element in elements:
-        if isinstance(element, AOV):
-            names.append(element.variable)
+# =============================================================================
+# NON-FUNCTIONS
+# =============================================================================
 
-        else:
-            names.append("@{}".format(element.name))
+class AOVFileWriter(object):
 
-    return " ".join(names)
+    # =========================================================================
+    # CONSTRUCTORS
+    # =========================================================================
 
-def applyToNodeAsParms(node, aovs):
-    num_aovs = len(aovs)
+    def __init__(self):
+        self._data = {}
 
-    node.parm("vm_numaux").set(num_aovs)
+    # =========================================================================
+    # PROPERTIES
+    # =========================================================================
 
-    for idx, aov in enumerate(aovs, 1):
-        node.parm("vm_variable_plane{0}".format(idx)).set(aov.variable)
-        node.parm("vm_vextype_plane{0}".format(idx)).set(aov.vextype)
+    @property
+    def data(self):
+        return self._data
 
-        if aov.channel is not None and aov.channel != aov.variable:
-            node.parm("vm_channel_plane{0}".format(idx)).set(aov.channel)
+    # =========================================================================
+    # METHODS
+    # =========================================================================
 
-        if aov.planefile is not None:
-            node.parm("vm_usefile_plane{0}".format(idx)).set(True)
-            node.parm("vm_filename_plane{0}".format(idx)).set(aov.planefile)
+    def addAOV(self, aov):
+        definitions = self.data.setdefault("definitions", [])
 
-        if aov.quantize is not None:
-            node.parm("vm_quantize_plane{0}".format(idx)).set(aov.quantize)
+        definitions.append(aov.data())
 
-        if aov.sfilter is not None:
-            node.parm("vm_sfilter_plane{0}".format(idx)).set(aov.sfilter)
+    def addGroup(self, group):
+        groups = self.data.setdefault("groups", {})
 
-        if aov.pfilter is not None:
-            node.parm("vm_pfilter_plane{0}".format(idx)).set(aov.pfilter)
+        groups.update(group.data())
 
-        # TODO: How to handle varying components?
-        if aov.componentexport:
-            node.parm("vm_componentexport{0}".format(idx)).set(True)
-
-        if aov.lightexport is not None:
-            menu_idx = ALLOWABLE_VALUES["lightexport"].index(aov.lightexport)
-            node.parm("vm_lightexport{0}".format(idx)).set(menu_idx)
-            node.parm("vm_lightexport_scope{0}".format(idx)).set(aov.lightexport_scope)
-            node.parm("vm_lightexport_select{0}".format(idx)).set(aov.lightexport_select)
+    def writeToFile(self, path):
+        with open(path, 'w') as f:
+            json.dump(self.data, f, indent=4)
 
 
-# TODO: care about priority
-def flattenList(elements):
-    aovs = set()
+# =============================================================================
+# NON-FUNCTIONS
+# =============================================================================
 
-    for element in elements:
-        if isinstance(element, AOV):
-            aovs.add(element)
+def _getItemMenuIndex(items, item):
+    """Function to determine which index an item represents."""
+    idx = 0
 
-        else:
-            for aov in element.aovs:
-                aovs.add(aov)
+    for itm in items:
+        if item == itm[0]:
+            return idx
 
-    return aovs
+        idx += 1
+
+    return 0
 
 
+# =============================================================================
+# FUNCTIONS
+# =============================================================================
 
 def applyElementsAsParms(elements, nodes):
+    """Apply a list of elemenents are multiparms."""
     aovs = flattenList(elements)
 
     for node in nodes:
@@ -78,12 +85,15 @@ def applyElementsAsParms(elements, nodes):
 
 
 def applyElementsAsString(elements, nodes):
+    """Apply a list of elements at rendertime."""
     value = listAsString(elements)
 
     for node in nodes:
+        # Need to create the auto_aovs parameter if it doesn't exist.
         if not node.parm("auto_aovs"):
             ptg = node.parmTemplateGroup()
 
+            # Toggle to enable/disable AOVs.
             parm_template = hou.ToggleParmTemplate(
                 "enable_auto_aovs",
                 "Automatic AOVs",
@@ -96,7 +106,7 @@ def applyElementsAsString(elements, nodes):
 
             ptg.append(parm_template)
 
-
+            # String parameter complete with group/AOV menu.
             parm_template = hou.StringParmTemplate(
                 "auto_aovs",
                 "Automatic AOVs",
@@ -119,65 +129,45 @@ def applyElementsAsString(elements, nodes):
         parm.set(value)
 
 
+# TODO: How to handle varying components?
+def applyToNodeAsParms(node, aovs):
+    """Apply a list of AOVs to a Mantra node using multiparm entries."""
+    num_aovs = len(aovs)
 
-def getIconFromVexType(vextype):
-    return QtGui.QIcon(
-        ":ht/rsc/icons/sohohooks/aovs/{0}.png".format(
-            vextype
-        )
-    )
+    node.parm("vm_numaux").set(num_aovs)
 
-def getIconFromGroup(group):
-    if group.icon is not None:
-        return QtGui.QIcon(group.icon)
+    for idx, aov in enumerate(aovs, 1):
+        node.parm("vm_variable_plane{}".format(idx)).set(aov.variable)
+        node.parm("vm_vextype_plane{}".format(idx)).set(aov.vextype)
 
-    return QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/group.png")
+        if aov.channel is not None and aov.channel != aov.variable:
+            node.parm("vm_channel_plane{}".format(idx)).set(aov.channel)
 
+        if aov.planefile is not None:
+            node.parm("vm_usefile_plane{}".format(idx)).set(True)
+            node.parm("vm_filename_plane{}".format(idx)).set(aov.planefile)
 
+        if aov.quantize is not None:
+            node.parm("vm_quantize_plane{}".format(idx)).set(aov.quantize)
 
+        if aov.sfilter is not None:
+            node.parm("vm_sfilter_plane{}".format(idx)).set(aov.sfilter)
 
+        if aov.pfilter is not None:
+            node.parm("vm_pfilter_plane{}".format(idx)).set(aov.pfilter)
 
+        if aov.componentexport:
+            node.parm("vm_componentexport{}".format(idx)).set(True)
 
-
-def _getItemMenuIndex(items, item):
-    idx = 0
-
-    for data in items:
-        if item == data[0]:
-            return idx
-
-        idx += 1
-
-    return 0
-
-
-def getVexTypeMenuIndex(vextype):
-    return _getItemMenuIndex(
-        data.VEXTYPE_MENU_ITEMS,
-        vextype
-    )
-
-def getQuantizeMenuIndex(quantize):
-    return _getItemMenuIndex(
-        data.QUANTIZE_MENU_ITEMS,
-        quantize
-    )
-
-def getSFilterMenuIndex(sfilter):
-    return _getItemMenuIndex(
-        data.SFILTER_MENU_ITEMS,
-        sfilter
-    )
-
-
-def getLightExportMenuIndex(lightexport):
-    return _getItemMenuIndex(
-        data.LIGHTEXPORT_MENU_ITEMS,
-        lightexport
-    )
+        if aov.lightexport is not None:
+            menu_idx = ALLOWABLE_VALUES["lightexport"].index(aov.lightexport)
+            node.parm("vm_lightexport{}".format(idx)).set(menu_idx)
+            node.parm("vm_lightexport_scope{}".format(idx)).set(aov.lightexport_scope)
+            node.parm("vm_lightexport_select{}".format(idx)).set(aov.lightexport_select)
 
 
 def findSelectedMantraNodes():
+    """Find any currently selected Mantra (ifd) nodes."""
     nodes = hou.selectedNodes()
 
     mantra_type = hou.nodeType("Driver/ifd")
@@ -192,3 +182,82 @@ def findSelectedMantraNodes():
 
     return tuple(nodes)
 
+
+# TODO: care about priority
+def flattenList(elements):
+    """Flatten a list of elements into a list of AOVs."""
+    aovs = set()
+
+    for element in elements:
+        if isinstance(element, AOV):
+            aovs.add(element)
+
+        else:
+            for aov in element.aovs:
+                aovs.add(aov)
+
+    return aovs
+
+
+def getIconFromGroup(group):
+    """Get the icon for an AOVGroup."""
+    # Group has a custom icon path so use. it.
+    if group.icon is not None:
+        return QtGui.QIcon(group.icon)
+
+    return QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/group.png")
+
+
+def getIconFromVexType(vextype):
+    """Get the icon corresponding to a VEX type."""
+    return QtGui.QIcon(
+        ":ht/rsc/icons/sohohooks/aovs/{}.png".format(
+            vextype
+        )
+    )
+
+
+def getLightExportMenuIndex(lightexport):
+    """Find the menu index of the lightexport value."""
+    return _getItemMenuIndex(
+        data.LIGHTEXPORT_MENU_ITEMS,
+        lightexport
+    )
+
+
+def getQuantizeMenuIndex(quantize):
+    """Find the menu index of the quantize value."""
+    return _getItemMenuIndex(
+        data.QUANTIZE_MENU_ITEMS,
+        quantize
+    )
+
+
+def getSFilterMenuIndex(sfilter):
+    """Find the menu index of the sfilter value."""
+    return _getItemMenuIndex(
+        data.SFILTER_MENU_ITEMS,
+        sfilter
+    )
+
+
+def getVexTypeMenuIndex(vextype):
+    """Find the menu index of the vextype value."""
+    return _getItemMenuIndex(
+        data.VEXTYPE_MENU_ITEMS,
+        vextype
+    )
+
+
+def listAsString(elements):
+    """Flatten a list of elements into a space separated string."""
+    names = []
+
+    for element in elements:
+        if isinstance(element, AOVGroup):
+            names.append("@{}".format(element.name))
+
+        else:
+            names.append(element.variable)
+
+    return " ".join(names)

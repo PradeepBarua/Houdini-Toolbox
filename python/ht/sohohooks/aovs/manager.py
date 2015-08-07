@@ -1,19 +1,30 @@
+"""This module contains classes and funcions for high level interaction
+with AOVs.
 
+"""
+
+# =============================================================================
+# IMPORTS
+# =============================================================================
+
+# Python Imports
 import glob
 import json
 import os
 
-
-
+# Houdini Toolbox Imports
 from ht.sohohooks.aovs.aov import AOV, AOVGroup
 from ht.utils import convertFromUnicode
 
-
+# Houdini Imports
 import hou
 
 
-class AOVManager(object):
+# =============================================================================
+# CLASSES
+# =============================================================================
 
+class AOVManager(object):
 
     def __init__(self):
         self._aovs = {}
@@ -24,7 +35,6 @@ class AOVManager(object):
 
     def __repr__(self):
         return "<AOVManager>"
-
 
     @property
     def interface(self):
@@ -109,19 +119,12 @@ class AOVManager(object):
     def _loadDataFromFiles(self):
         paths = _findAOVFiles()
 
-        return [self._loadDataFromFile(path) for path in paths]
-
-
-    def _loadDataFromFile(self, path):
-        with open(path) as f:
-            data = json.load(f, object_hook=convertFromUnicode)
-
-        data["path"] = path
-
-        return data
+        #return [self._loadDataFromFile(path) for path in paths]
+        return [AOVFileReader.readFromFile(path) for path in paths]
 
 
     def addAOV(self, aov):
+        """Add an AOV to the manager."""
         self._aovs[aov.variable] = aov
 
         if self.interface is not None:
@@ -129,6 +132,7 @@ class AOVManager(object):
 
 
     def addGroup(self, group):
+        """Add an AOVGroup to the manager."""
         self.groups[group.name] = group
 
         if self.interface is not None:
@@ -136,10 +140,12 @@ class AOVManager(object):
 
 
     def clear(self):
+        """Clear all definitions."""
         self._aovs = {}
         self._groups = {}
 
     def reload(self):
+        """Reload all definitions."""
         self._initAOVs()
 
 
@@ -154,6 +160,7 @@ class AOVManager(object):
         pass
 
     def getAOVsFromString(self, aov_str):
+        """Get a list of AOVs and AOVGroups from a string."""
         aovs = []
 
         aov_str = aov_str.replace(',', ' ')
@@ -171,8 +178,10 @@ class AOVManager(object):
 
         return aovs
 
+    # TODO: Why is this static?  Couldn't sohohook instantiate and call?
     @staticmethod
     def addAOVsToIfd(wrangler, cam, now):
+        """Add auto_aovs to the ifd."""
         import soho
 
         # The parameter that defines which automatic aovs to add.
@@ -185,12 +194,14 @@ class AOVManager(object):
         plist = cam.wrangle(wrangler, parms, now)
 
         if plist:
+            # Adding is disabled so bail out.
             if plist["enable_auto_aovs"].Value[0] == 0:
                 return
 
             aov_str = plist["auto_aovs"].Value[0]
 
-            manager = AOVManager()
+            # Construct a manager-laf
+            manager = findOrCreateSessionAOVManager()
 
             # Parse the string to get any aovs/groups.
             aovs = manager.getAOVsFromString(aov_str)
@@ -200,8 +211,86 @@ class AOVManager(object):
                 aov.writeToIfd(wrangler, cam, now)
 
 
+class AOVFileReader(object):
+    def __init__(self, path):
+        self._aovs = []
+        self._groups = []
+
+        self._path = path
+
+        self.test()
+
+    @property
+    def aovs(self):
+        return self._aovs
+
+    @property
+    def groups(self):
+        return self._groups
+
+    @property
+    def path(self):
+        return self._path
+
+    @staticmethod
+    def readFromFile(path):
+        with open(path) as fp:
+            data = json.load(fp, object_hook=convertFromUnicode)
+
+        data["path"] = path
+        return data
+
+    def test(self):
+        data = self.readFromFile(self.path)
+
+        if "definitions" in data:
+            self.createAOVs(data["definitions"])
+
+        if "groups" in data:
+            self.createGroups(data["groups"])
+
+    def createAOVs(self, data):
+        for definition in data:
+            definition["path"] = self.path
+
+            aov = AOV(definition)
+
+            self.aovs.append(aov)
+
+    def createGroups(self, data):
+        for name, group_data in data.iteritems():
+            # Skip existing groups.
+            #if name in self.groups:
+            #    continue
+
+            group = AOVGroup(name)
+
+            if "include" in group_data:
+                group.includes.extend(group_data["include"])
+
+                #for include_name in includes:
+                    #if include_name in self._aovs:
+                        #group.aovs.append(self._aovs[include_name])
+
+            if "comment" in group_data:
+                group.comment = group_data["comment"]
+
+            if "icon" in group_data:
+                group.icon = os.path.expandvars(group_data["icon"])
+
+            group.path = self.path
+
+            self.groups.append(group)
+
+
+
+# =============================================================================
+# NON-PUBLIC FUNCTIONS
+# =============================================================================
+
 # TODO: Use a custom scan path if available?
 def _findAOVFiles():
+    """Find any .json files that should be read."""
 
     try:
         directories = hou.findDirectories("config/aovs")
@@ -217,26 +306,12 @@ def _findAOVFiles():
     return all_files
 
 
-
-def createSessionAOVManager():
-    manager = AOVManager()
-    hou.session.aov_manager = manager
-
-    return manager
-
-def findOrCreateSessionAOVManager(rebuild=False):
-    manager = None
-
-    if hasattr(hou.session, "aov_manager") and not rebuild:
-        manager = hou.session.aov_manager
-
-    else:
-        manager = createSessionAOVManager()
-
-    return manager
-
+# =============================================================================
+# FUNCTIONS
+# =============================================================================
 
 def buildMenuScript():
+    """Build a menu script for choosing AOVs and groups."""
     manager = findOrCreateSessionAOVManager()
 
     menu = []
@@ -253,34 +328,22 @@ def buildMenuScript():
     return menu
 
 
+def createSessionAOVManager():
+    """Create an AOVManager stored in hou.session."""
+    manager = AOVManager()
+    hou.session.aov_manager = manager
 
-class AOVWriter(object):
-
-
-    def __init__(self):
-        self._data = {}
-
-    @property
-    def data(self):
-        return self._data
+    return manager
 
 
-    def addAOV(self, aov):
-        definitions = self.data.setdefault("definitions", [])
+def findOrCreateSessionAOVManager(rebuild=False):
+    """Find or create an AOVManager from hou.session."""
+    manager = None
 
-        definitions.append(aov.data())
+    if hasattr(hou.session, "aov_manager") and not rebuild:
+        manager = hou.session.aov_manager
 
-    def addGroup(self, group):
-        groups = self.data.setdefault("groups", {})
+    else:
+        manager = createSessionAOVManager()
 
-        groups.update(group.data())
-
-
-
-    def writeToFile(self, path):
-        with open(path, 'w') as f:
-            json.dump(self.data, f, indent=4)
-
-
-
-
+    return manager
