@@ -1,8 +1,10 @@
+"""This module contains classes to define AOVs and groups of AOVs."""
 
+# =============================================================================
+# IMPORTS
+# =============================================================================
 
 import json
-
-
 
 # =============================================================================
 # CONSTANTS
@@ -15,19 +17,17 @@ ALLOWABLE_VALUES = {
     "vextype": ("float", "vector", "vector4")
 }
 
-
-# TODO: add some sort of priority, so you can control how things are overriden
-# in the case of conflicts.
-
-# TODO: Handle hidden plane parms?
+# =============================================================================
+# CLASSES
+# =============================================================================
 
 class AOV(object):
+    """This class represents an AOV to be exported."""
 
     def __init__(self, data):
-
+        self._channel = None
         self._componentexport = None
         self._components = []
-        self._channel = None
         self._comment = None
         self._lightexport = None
         self._lightexport_scope = "*"
@@ -41,12 +41,8 @@ class AOV(object):
         self._variable = None
         self._vextype = None
 
-
         for name, value in data.iteritems():
             if value is None:
-                continue
-
-            if name == "conditionals":
                 continue
 
             # Check if there is a restriction on the data type.
@@ -73,9 +69,6 @@ class AOV(object):
     # SPECIAL METHODS
     # =========================================================================
 
-    def _key(self):
-            return (self.variable, self.channel)
-
     def __cmp__(self, other):
         if isinstance(other, self.__class__):
             return cmp(self.variable, other.variable)
@@ -98,7 +91,7 @@ class AOV(object):
         return self.variable
 
     # =========================================================================
-    # INSTANCE PROPERTIES
+    # PROPERTIES
     # =========================================================================
 
     @property
@@ -121,6 +114,7 @@ class AOV(object):
 
     @property
     def componentexport(self):
+        """Whether or not components are being exported."""
         return self._componentexport
 
     @componentexport.setter
@@ -129,16 +123,12 @@ class AOV(object):
 
     @property
     def components(self):
+        """List of components to export."""
         return self._components
 
     @components.setter
     def components(self, components):
         self._components = components
-
-#    @property
-#    def conditionals(self):
-#        """([RenderConditional]) RenderConditional objects for the aov."""
-#        return self._conditionals
 
     @property
     def lightexport(self):
@@ -196,6 +186,7 @@ class AOV(object):
 
     @property
     def priority(self):
+        """Group priority."""
         return self._priority
 
     @priority.setter
@@ -239,16 +230,25 @@ class AOV(object):
         self._vextype = vextype
 
     # =========================================================================
+    # NON-PUBLIC METHODS
+    # =========================================================================
 
+    def _key(self):
+        return (self.variable, self.channel)
+
+    # =========================================================================
+    # METHODS
+    # =========================================================================
 
     def data(self):
+        """Get a dictionary representing the AOV."""
         d = {
             "variable": self.variable,
             "vextype": self.vextype,
         }
 
         if self.channel is not None:
-            d["channel"] = self.variable
+            d["channel"] = self.channel
 
         if self.quantize is not None:
             d["quantize"] = self.quantize
@@ -280,45 +280,25 @@ class AOV(object):
 
         return d
 
-
     def writeToIfd(self, wrangler, cam, now):
-        """Output all necessary aovs.
-
-        Args:
-            wrangler : (Object)
-                A wrangler object.
-
-            cam : (soho.SohoObject)
-                The camera being rendered.
-
-            now : (float)
-                The parameter evaluation time.
-
-        Raises:
-            N/A
-
-        Returns:
-            None
-
-        """
+        """Output the AOV."""
         import soho
 
         # The base data to pass along.
         data = self.data()
 
-        # Apply any conditionals before the light export phase.
-#        if self.conditionals:
-#            for conditional in self.conditionals:
-#                data.update(conditional.getData(wrangler, cam, now))
-
         channel = self.channel
 
+        # If there is no explicit channel set, use the variable name.
         if channel is None:
             channel = self.variable
 
+        # Handle exporting of multiple components
         if self.componentexport:
             components = self.components
 
+            # If no components are explicitly set on the AOV, use the
+            # vm_exportcomponents parameter from the Mantra ROP.
             if not components:
                 parms =  {
                     "components": soho.SohoParm("vm_exportcomponents", "str", [""], skipdefault=False),
@@ -330,6 +310,7 @@ class AOV(object):
                     components = plist["vm_exportcomponents"].Value[0]
                     components = components.split()
 
+            # Create a unique channel for each component and output the block.
             for component in components:
                 data["channel"] = "{}_{}".format(channel, component)
                 data["component"] = component
@@ -337,11 +318,13 @@ class AOV(object):
                 self.lightExportPlanes(data, wrangler, cam, now)
 
         else:
+            # Update the data with the channel.
             data["channel"] = channel
 
             self.lightExportPlanes(data, wrangler, cam, now)
 
     def lightExportPlanes(self, data, wrangler, cam, now):
+        """Handle exporting the image planes based on their export settings."""
         base_channel = data["channel"]
 
         # Handle any light exporting.
@@ -537,10 +520,8 @@ class AOV(object):
         IFDapi.ray_end()
 
 
-# TODO: Add support for overriding export components per group? @foo:diffuse,reflect,...?
-
 class AOVGroup(object):
-    """An object representing a group of AOV definitions.
+    """This class represents a group of AOV definitions.
 
     """
 
@@ -549,43 +530,17 @@ class AOVGroup(object):
     # =========================================================================
 
     def __init__(self, name):
-        """Initialize a AOVGroup.
-
-        Args:
-            name : (str)
-                The name of the group.
-
-            file_path : (str)
-                The path containing the group definition.
-
-        Raises:
-            N/A
-
-        Returns:
-            N/A
-
-        """
         self._aovs = []
-        self._comment = ""
+        self._comment = None
         self._icon = None
+        self._includes = []
         self._name = name
         self._path = None
         self._priority = -1
 
-        self._includes = []
-
     # =========================================================================
     # SPECIAL METHODS
     # =========================================================================
-
-    def __repr__(self):
-        return "<AOVGroup {0} ({1} aovs)>".format(
-            self.name,
-            len(self.aovs)
-        )
-
-    def __str__(self):
-        return self.name
 
     def __cmp__(self, other):
         if isinstance(other, self.__class__):
@@ -593,18 +548,24 @@ class AOVGroup(object):
 
         return -1
 
+    def __repr__(self):
+        return "<AOVGroup {0} ({1} aovs)>".format(
+            self.name,
+            len(self.aovs)
+        )
+
     # =========================================================================
     # INSTANCE PROPERTIES
     # =========================================================================
 
     @property
     def aovs(self):
-        """([AOV]) A list of AOVs in the group."""
+        """A list of AOVs in the group."""
         return self._aovs
 
     @property
     def comment(self):
-        """(str) Optional comment about this AOV."""
+        """Optional comment about this AOV."""
         return self._comment
 
     @comment.setter
@@ -613,6 +574,7 @@ class AOVGroup(object):
 
     @property
     def icon(self):
+        """Optional path to an icon for this group."""
         return self._icon
 
     @icon.setter
@@ -621,11 +583,12 @@ class AOVGroup(object):
 
     @property
     def includes(self):
+        """List of AOV names belonging to the group."""
         return self._includes
 
     @property
     def path(self):
-        """(str) The path containing the group definition."""
+        """The path containing the group definition."""
         return self._path
 
     @path.setter
@@ -634,11 +597,12 @@ class AOVGroup(object):
 
     @property
     def name(self):
-        """(str) The name of the group."""
+        """The name of the group."""
         return self._name
 
     @property
     def priority(self):
+        """Group priority."""
         return self._priority
 
     @priority.setter
@@ -650,50 +614,26 @@ class AOVGroup(object):
     # =========================================================================
 
     def clear(self):
-        self.aovs[:] = []
+        """Clear the list of AOVs belonging to this group."""
+        self._aovs = []
 
     def data(self):
+        """Get a dictionary representing the group."""
         d = {
             self.name: {
                 "include": [aov.variable for aov in self.aovs],
             }
         }
 
-        if self.comment:
+        if self.comment is not None:
             d[self.name]["comment"] = self.comment
 
         return d
 
-
-
     def writeToIfd(self, wrangler, cam, now):
-        """Write all aovs in the group to the ifd.
-
-        Args:
-            wrangler : (Object)
-                A wrangler object.
-
-            cam : (soho.SohoObject)
-                The camera being rendered.
-
-            now : (float)
-                The parameter evaluation time.
-
-        Raises:
-            N/A
-
-        Returns:
-            None
-
-        """
+        """Write all AOVs in the group to the ifd."""
         for aov in self.aovs:
             aov.writeToIfd(wrangler, cam, now)
-
-
-
-
-
-
 
 # =============================================================================
 # EXCEPTIONS
@@ -732,6 +672,7 @@ class MissingVariable(Exception):
             self.variable
         )
 
+
 class MissingVexTypeError(Exception):
     """Exception for missing 'vextype' information.
 
@@ -746,8 +687,12 @@ class MissingVexTypeError(Exception):
             self.vextype
         )
 
+# =============================================================================
+# NON-PUBLIC FUNCTIONS
+# =============================================================================
 
 def _callPostDefPlane(data, wrangler, cam, now):
+    """Call the post_defplane hook."""
     import IFDhooks
 
     return IFDhooks.call(
@@ -763,6 +708,7 @@ def _callPostDefPlane(data, wrangler, cam, now):
     )
 
 def _callPreDefPlane(data, wrangler, cam, now):
+    """Call the pre_defplane hook."""
     import IFDhooks
 
     return IFDhooks.call(

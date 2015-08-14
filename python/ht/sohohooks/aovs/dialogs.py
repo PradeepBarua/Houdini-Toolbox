@@ -13,8 +13,7 @@ import os
 import re
 
 # Houdini Toolbox Imports
-from ht.sohohooks.aovs import data, widgets, utils
-from ht.sohohooks.aovs import manager
+from ht.sohohooks.aovs import data, manager, widgets, utils
 from ht.sohohooks.aovs.aov import AOV, AOVGroup
 
 # Houdini Imports
@@ -65,30 +64,6 @@ class AOVDialog(QtGui.QDialog):
 
         else:
             self.setWindowTitle("Edit AOV")
-
-    # =========================================================================
-    # NON-PUBLIC METHODS
-    # =========================================================================
-
-    def _enableCreation(self, enable):
-        """Enable the Ok button."""
-        self.button_box.button(QtGui.QDialogButtonBox.Ok).setEnabled(enable)
-
-    def _enableComponents(self, enable):
-        """Enable the Export Components field."""
-        self.components_label.setEnabled(enable)
-        self.components.setEnabled(enable)
-
-    def _enableExports(self, value):
-        """Enable the Light Mask and Light Selection fields."""
-        # Current index must be 2 or 3 to enable the fields.
-        enable = value in (2, 3)
-
-        self.light_mask_label.setEnabled(enable)
-        self.light_mask.setEnabled(enable)
-
-        self.light_select_label.setEnabled(enable)
-        self.light_select.setEnabled(enable)
 
     # =========================================================================
     #  METHODS
@@ -143,7 +118,7 @@ class AOVDialog(QtGui.QDialog):
         self.new_aov = new_aov
         new_aov.path = os.path.expandvars(self.file_widget.getPath())
 
-        writer = utils.AOVFileWriter()
+        writer = manager.AOVFileWriter()
 
         writer.addAOV(new_aov)
 
@@ -153,6 +128,26 @@ class AOVDialog(QtGui.QDialog):
 
         self.newAOVSignal.emit(new_aov)
         return super(AOVDialog, self).accept()
+
+    def enableCreation(self, enable):
+        """Enable the Ok button."""
+        self.button_box.button(QtGui.QDialogButtonBox.Ok).setEnabled(enable)
+
+    def enableComponents(self, enable):
+        """Enable the Export Components field."""
+        self.components_label.setEnabled(enable)
+        self.components.setEnabled(enable)
+
+    def enableExports(self, value):
+        """Enable the Light Mask and Light Selection fields."""
+        # Current index must be 2 or 3 to enable the fields.
+        enable = value in (2, 3)
+
+        self.light_mask_label.setEnabled(enable)
+        self.light_mask.setEnabled(enable)
+
+        self.light_select_label.setEnabled(enable)
+        self.light_select.setEnabled(enable)
 
     def initFromAOV(self, aov):
         """Initialize the dialog from an AOV."""
@@ -302,7 +297,7 @@ class AOVDialog(QtGui.QDialog):
             " selected on the Mantra ROP."
         )
 
-        self.componentexport.stateChanged.connect(self._enableComponents)
+        self.componentexport.stateChanged.connect(self.enableComponents)
 
         # =====================================================================
 
@@ -318,7 +313,7 @@ class AOVDialog(QtGui.QDialog):
         for entry in data.LIGHTEXPORT_MENU_ITEMS:
             self.lightexport.addItem(entry[1], entry[0])
 
-        self.lightexport.currentIndexChanged.connect(self._enableExports)
+        self.lightexport.currentIndexChanged.connect(self.enableExports)
 
         # =====================================================================
 
@@ -412,17 +407,17 @@ class AOVDialog(QtGui.QDialog):
         self.button_box.rejected.connect(self.reject)
 
         if self._operation == DialogOperation.New:
-            self._enableCreation(False)
+            self.enableCreation(False)
 
         else:
-            self._enableCreation(True)
+            self.enableCreation(True)
 
             self.button_box.addButton(QtGui.QDialogButtonBox.Reset)
 
             reset_button = self.button_box.button(QtGui.QDialogButtonBox.Reset)
             reset_button.clicked.connect(self.reset)
 
-        self.validInputSignal.connect(self._enableCreation)
+        self.validInputSignal.connect(self.enableCreation)
 
     def reset(self):
         """Reset any changes made."""
@@ -504,15 +499,7 @@ class AOVGroupDialog(QtGui.QDialog):
         else:
             self.setWindowTitle("Edit AOV Group")
 
-        self.validInputSignal.connect(self._enableCreation)
-
-    # =========================================================================
-    # NON-PUBLIC METHODS
-    # =========================================================================
-
-    def _enableCreation(self, enable):
-        """Enable the Ok button."""
-        self.button_box.button(QtGui.QDialogButtonBox.Ok).setEnabled(enable)
+        self.validInputSignal.connect(self.enableCreation)
 
     # =========================================================================
     # METHODS
@@ -548,11 +535,15 @@ class AOVGroupDialog(QtGui.QDialog):
             self.groupUpdatedSignal.emit(group)
 
         # Construct a writer and write the group to disk.
-        writer = utils.AOVFileWriter()
+        writer = manager.AOVFileWriter()
         writer.addGroup(group)
         writer.writeToFile(file_path)
 
         return super(AOVGroupDialog, self).accept()
+
+    def enableCreation(self, enable):
+        """Enable the Ok button."""
+        self.button_box.button(QtGui.QDialogButtonBox.Ok).setEnabled(enable)
 
     def initFromGroup(self, group):
         """Initialize the dialog from a group."""
@@ -618,7 +609,7 @@ class AOVGroupDialog(QtGui.QDialog):
 
         # =====================================================================
 
-        self.filter = widgets.AOVFilterWidget()
+        self.filter = widgets.FilterWidget()
         layout.addWidget(self.filter)
 
         QtCore.QObject.connect(
@@ -650,10 +641,10 @@ class AOVGroupDialog(QtGui.QDialog):
 
         if self._operation == DialogOperation.New:
             # Disable Ok button by default.
-            self._enableCreation(False)
+            self.enableCreation(False)
 
         else:
-            self._enableCreation(True)
+            self.enableCreation(True)
 
             # Add a Reset button.
             self.button_box.addButton(QtGui.QDialogButtonBox.Reset)
@@ -980,3 +971,34 @@ class AOVGroupInfoDialog(QtGui.QDialog):
         member_model.beginResetModel()
         member_model.initDataFromGroup(group)
         member_model.endResetModel()
+
+# =========================================================================
+# METHODS
+# =========================================================================
+
+def createNewAOV():
+    """Display the Create AOV dialog."""
+    active = QtGui.QApplication.instance().activeWindow()
+
+    aov_dialog = AOVDialog(parent=active)
+
+    aov_dialog.newAOVSignal.connect(
+        manager.MANAGER.addAOV
+    )
+
+    aov_dialog.show()
+
+def createNewGroup(aovs=()):
+    """Display the Create AOV Group dialog."""
+    active = QtGui.QApplication.instance().activeWindow()
+
+    new_group_dialog = AOVGroupDialog(parent=active)
+
+    if aovs:
+        new_group_dialog.setSelectedAOVs(aovs)
+
+    new_group_dialog.newAOVGroupSignal.connect(
+        manager.MANAGER.addGroup
+    )
+
+    new_group_dialog.show()

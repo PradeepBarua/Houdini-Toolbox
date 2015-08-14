@@ -17,71 +17,8 @@ from ht.utils import convertFromUnicode
 # Houdini Imports
 import hou
 
-
 # =============================================================================
-# NON-FUNCTIONS
-# =============================================================================
-
-class AOVFileWriter(object):
-
-    # =========================================================================
-    # CONSTRUCTORS
-    # =========================================================================
-
-    def __init__(self):
-        self._data = {}
-
-    # =========================================================================
-    # PROPERTIES
-    # =========================================================================
-
-    @property
-    def data(self):
-        return self._data
-
-    # =========================================================================
-    # METHODS
-    # =========================================================================
-
-    def addAOV(self, aov):
-        definitions = self.data.setdefault("definitions", [])
-
-        definitions.append(aov.data())
-
-    def addGroup(self, group):
-        groups = self.data.setdefault("groups", {})
-
-        groups.update(group.data())
-
-    def writeToFile(self, path):
-
-        if os.path.exists(path):
-
-            with open(path, 'r') as fp:
-                data = json.load(fp, object_hook=convertFromUnicode)
-
-                if "groups" in self.data:
-                    groups = data.setdefault("groups", {})
-
-                    for name, group_data in self.data["groups"].iteritems():
-                        groups[name] = group_data
-
-                if "definitions" in self.data:
-                    definitions = data.setdefault("definitions", [])
-
-                    for definition in self.data["definitions"]:
-                        definitions.append(definition)
-
-            with open(path, 'w') as fp:
-                json.dump(data, fp, indent=4)
-
-        else:
-            with open(path, 'w') as fp:
-                json.dump(self.data, fp, indent=4)
-
-
-# =============================================================================
-# NON-FUNCTIONS
+# NON-PUBLIC FUNCTIONS
 # =============================================================================
 
 def _getItemMenuIndex(items, item):
@@ -95,7 +32,6 @@ def _getItemMenuIndex(items, item):
         idx += 1
 
     return 0
-
 
 # =============================================================================
 # FUNCTIONS
@@ -154,7 +90,6 @@ def applyElementsAsString(elements, nodes):
         parm.set(value)
 
 
-# TODO: How to handle varying components?
 def applyToNodeAsParms(node, aovs):
     """Apply a list of AOVs to a Mantra node using multiparm entries."""
     num_aovs = len(aovs)
@@ -191,6 +126,23 @@ def applyToNodeAsParms(node, aovs):
             node.parm("vm_lightexport_select{}".format(idx)).set(aov.lightexport_select)
 
 
+def filePathIsValid(path):
+    """Check if a file path is valid."""
+    if path:
+        dirname = os.path.dirname(path)
+        file_name = os.path.basename(path)
+
+        if not dirname or not file_name:
+            return False
+
+        elif not os.path.splitext(file_name)[1]:
+            return False
+
+        return True
+
+    return False
+
+
 def findSelectedMantraNodes():
     """Find any currently selected Mantra (ifd) nodes."""
     nodes = hou.selectedNodes()
@@ -208,7 +160,6 @@ def findSelectedMantraNodes():
     return tuple(nodes)
 
 
-# TODO: care about priority
 def flattenList(elements):
     """Flatten a list of elements into a list of AOVs."""
     aovs = set()
@@ -275,6 +226,7 @@ def getVexTypeMenuIndex(vextype):
 
 
 def isValueDefault(value, field):
+    """Check if a value for a field is default."""
     return data.DEFAULT_VALUES[field] == value
 
 
