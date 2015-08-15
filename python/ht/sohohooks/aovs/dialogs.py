@@ -777,7 +777,7 @@ class AOVInfoDialog(QtGui.QDialog):
         start_idx = -1
 
         # Populate the AOV chooser with all the existing AOVs.
-        for idx, aov in enumerate(manager.MANAGER.aovs.values()):
+        for idx, aov in enumerate(sorted(manager.MANAGER.aovs.values())):
             # If a channel is specified, put it into the display name.
             if aov.channel is not None:
                 label = "{0} ({1})".format(
@@ -827,7 +827,7 @@ class AOVInfoDialog(QtGui.QDialog):
 
         # =====================================================================
 
-        self.table.resizeColumnToContents(1)
+        self.table.resizeColumnToContents(0)
         self.setMinimumSize(self.table.size())
 
     def edit(self):
@@ -853,6 +853,8 @@ class AOVInfoDialog(QtGui.QDialog):
         model.beginResetModel()
         model.initDataFromAOV(aov)
         model.endResetModel()
+
+        self.table.resizeColumnToContents(0)
 
 # =============================================================================
 
@@ -887,7 +889,7 @@ class AOVGroupInfoDialog(QtGui.QDialog):
         start_idx = -1
 
         # Populate the group chooser with all the existing groups.
-        for idx, group in enumerate(manager.MANAGER.groups.values()):
+        for idx, group in enumerate(sorted(manager.MANAGER.groups.values())):
             label = group.name
 
             self.group_chooser.addItem(
@@ -936,7 +938,7 @@ class AOVGroupInfoDialog(QtGui.QDialog):
 
         # =====================================================================
 
-        self.table.resizeColumnToContents(1)
+        self.table.resizeColumnToContents(0)
         self.setMinimumSize(self.table.size())
 
     # =========================================================================
@@ -971,6 +973,9 @@ class AOVGroupInfoDialog(QtGui.QDialog):
         member_model.beginResetModel()
         member_model.initDataFromGroup(group)
         member_model.endResetModel()
+
+        self.table.resizeColumnToContents(0)
+
 
 # =========================================================================
 # METHODS
