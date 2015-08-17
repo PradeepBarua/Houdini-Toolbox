@@ -10,7 +10,7 @@ import json
 import os
 
 # Houdini Toolbox Imports
-from ht.sohohooks.aovs import data
+from ht.sohohooks.aovs import uidata
 from ht.sohohooks.aovs.aov import AOV, AOVGroup, ALLOWABLE_VALUES
 from ht.utils import convertFromUnicode
 
@@ -154,7 +154,7 @@ def buildAOVsFromMultiparm(node):
         aov_data["componentexport"] = node.evalParm("vm_componentexport{}".format(idx))
 
         lightexport = node.evalParm("vm_lightexport{}".format(idx))
-        lightexport = data.LIGHTEXPORT_MENU_ITEMS[lightexport][0]
+        lightexport = uidata.LIGHTEXPORT_MENU_ITEMS[lightexport][0]
 
         if lightexport:
             aov_data["lightexport"] = lightexport
@@ -248,7 +248,7 @@ def getIconFromVexType(vextype):
 def getLightExportMenuIndex(lightexport):
     """Find the menu index of the lightexport value."""
     return _getItemMenuIndex(
-        data.LIGHTEXPORT_MENU_ITEMS,
+        uidata.LIGHTEXPORT_MENU_ITEMS,
         lightexport
     )
 
@@ -256,7 +256,7 @@ def getLightExportMenuIndex(lightexport):
 def getQuantizeMenuIndex(quantize):
     """Find the menu index of the quantize value."""
     return _getItemMenuIndex(
-        data.QUANTIZE_MENU_ITEMS,
+        uidata.QUANTIZE_MENU_ITEMS,
         quantize
     )
 
@@ -264,7 +264,7 @@ def getQuantizeMenuIndex(quantize):
 def getSFilterMenuIndex(sfilter):
     """Find the menu index of the sfilter value."""
     return _getItemMenuIndex(
-        data.SFILTER_MENU_ITEMS,
+        uidata.SFILTER_MENU_ITEMS,
         sfilter
     )
 
@@ -272,14 +272,14 @@ def getSFilterMenuIndex(sfilter):
 def getVexTypeMenuIndex(vextype):
     """Find the menu index of the vextype value."""
     return _getItemMenuIndex(
-        data.VEXTYPE_MENU_ITEMS,
+        uidata.VEXTYPE_MENU_ITEMS,
         vextype
     )
 
 
 def isValueDefault(value, field):
     """Check if a value for a field is default."""
-    return data.DEFAULT_VALUES[field] == value
+    return uidata.DEFAULT_VALUES[field] == value
 
 
 def listAsString(elements):

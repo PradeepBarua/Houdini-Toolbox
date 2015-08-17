@@ -13,7 +13,7 @@ import os
 import re
 
 # Houdini Toolbox Imports
-from ht.sohohooks.aovs import data, manager, widgets, utils
+from ht.sohohooks.aovs import manager, widgets, uidata, utils
 from ht.sohohooks.aovs.aov import AOV, AOVGroup
 
 # Houdini Imports
@@ -209,7 +209,7 @@ class AOVDialog(QtGui.QDialog):
         self.type_box = QtGui.QComboBox()
         grid_layout.addWidget(self.type_box, 2, 1)
 
-        for entry in data.VEXTYPE_MENU_ITEMS:
+        for entry in uidata.VEXTYPE_MENU_ITEMS:
             icon = utils.getIconFromVexType(entry[0])
 
             self.type_box.addItem(
@@ -242,7 +242,7 @@ class AOVDialog(QtGui.QDialog):
         self.quantize_box = QtGui.QComboBox()
         grid_layout.addWidget(self.quantize_box, 4, 1)
 
-        for entry in data.QUANTIZE_MENU_ITEMS:
+        for entry in uidata.QUANTIZE_MENU_ITEMS:
             self.quantize_box.addItem(entry[1], entry[0])
 
         self.quantize_box.setCurrentIndex(2)
@@ -254,7 +254,7 @@ class AOVDialog(QtGui.QDialog):
         self.sfilter_box = QtGui.QComboBox()
         grid_layout.addWidget(self.sfilter_box, 5, 1)
 
-        for entry in data.SFILTER_MENU_ITEMS:
+        for entry in uidata.SFILTER_MENU_ITEMS:
             self.sfilter_box.addItem(entry[1], entry[0])
 
         # =====================================================================
@@ -262,7 +262,7 @@ class AOVDialog(QtGui.QDialog):
         grid_layout.addWidget(QtGui.QLabel("Pixel Filter"), 6, 0)
 
         self.pfilter_widget = widgets.MenuField(
-            data.PFILTER_MENU_ITEMS
+            uidata.PFILTER_MENU_ITEMS
         )
         grid_layout.addWidget(self.pfilter_widget, 6, 1)
 
@@ -310,7 +310,7 @@ class AOVDialog(QtGui.QDialog):
         self.lightexport = QtGui.QComboBox()
         grid_layout.addWidget(self.lightexport, 11, 1)
 
-        for entry in data.LIGHTEXPORT_MENU_ITEMS:
+        for entry in uidata.LIGHTEXPORT_MENU_ITEMS:
             self.lightexport.addItem(entry[1], entry[0])
 
         self.lightexport.currentIndexChanged.connect(self.enableExports)
