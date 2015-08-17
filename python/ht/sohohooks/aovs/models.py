@@ -575,7 +575,6 @@ class AOVSelectModel(BaseAOVTreeModel):
 
         self._installed = set()
 
-    # TODO: Remove this?
     def findNamedFolder(self, name):
         """Find a folder with a given name."""
         node = self.getNode(QtCore.QModelIndex())
@@ -739,67 +738,40 @@ class AOVSelectModel(BaseAOVTreeModel):
 
         return mime_data
 
-    # TODO: This is crap
     def updateGroup(self, group):
-        """Update the members of a group."""
+        """Update the members of a group.
+
+        This works by removing all existing AOVNodes and adding them back
+        based on the new group membership.
+
+        """
         index = self.findNamedFolder("Groups")
 
         parentNode = self.getNode(index)
 
-        row = 0
-        for child in parentNode.children:
+        # Process each group in the tree.
+        for row, child in enumerate(parentNode.children):
+            # This group is the one to be updated.
             if child.group == group:
                 child_index = self.index(row, 0, index)
 
-                num_current_children = len(child.children)
-                num_new_children = len(group.aovs)
+                # Remove all the existing AOV nodes.
+                self.beginRemoveRows(child_index, 0, len(child.children)-1)
 
-                if num_current_children < num_new_children:
-                    num_to_add = num_new_children - num_current_children
+                child.removeAllChildren()
 
-                    self.beginInsertRows(
-                        child_index,
-                        num_current_children,
-                        num_current_children + num_to_add - 1
-                    )
+                self.endRemoveRows()
 
-                    child.removeAllChildren()
+                # Add all the AOVs from the updated group.
+                self.beginInsertRows(child_index, 0, len(group.aovs) - 1)
 
-                    for aov in group.aovs:
-                        AOVNode(aov, child)
+                for aov in group.aovs:
+                    AOVNode(aov, child)
 
-                    self.endInsertRows()
+                self.endInsertRows()
 
-                elif num_current_children > num_new_children:
-                    num_to_remove = num_current_children - num_new_children
-
-                    self.beginRemoveRows(
-                        child_index,
-                        num_current_children-num_to_remove,
-                        num_current_children-1
-                    )
-
-                    child.removeAllChildren()
-
-                    for aov in group.aovs:
-                        AOVNode(aov, child)
-
-                    self.endRemoveRows()
-
-                else:
-                    child.removeAllChildren()
-
-                    start_idx = self.index(0, 0, child_index)
-                    end_idx = self.index(num_current_children-1, 0, child_index)
-
-                    for aov in group.aovs:
-                        AOVNode(aov, child)
-
-                    self.dataChanged.emit(start_idx, end_idx)
-
+                # We're done here.
                 break
-
-            row += 1
 
 # =============================================================================
 
