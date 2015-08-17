@@ -16,9 +16,9 @@ DEFAULT_VALUES = {
 
 LIGHTEXPORT_MENU_ITEMS = (
     ("", "No light exports"),
-    ("per-category", "Export variable for each category"),
     ("per-light", "Export variable for each light"),
     ("single", "Merge all lights into single channel"),
+    ("per-category", "Export variable for each category"),
 )
 
 PFILTER_MENU_ITEMS = (
