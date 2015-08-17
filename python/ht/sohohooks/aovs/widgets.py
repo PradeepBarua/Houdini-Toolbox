@@ -48,7 +48,6 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
     installItemsSignal = QtCore.Signal(models.AOVBaseNode)
     uninstallItemsSignal = QtCore.Signal(models.AOVBaseNode)
 
-
     # =========================================================================
     # CONSTRUCTORS
     # =========================================================================
@@ -80,6 +79,8 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
 
         self.initFromManager()
 
+        self.setAcceptDrops(True)
+
     # =========================================================================
     # METHODS
     # =========================================================================
@@ -107,6 +108,67 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
         for index in reversed(indexes):
             self.collapse(index)
 
+    def dragEnterEvent(self, event):
+        """Event occuring when something is dragged into the widget."""
+        # Accept text containing events so we can drop Houdini nodes and files.
+        if event.mimeData().hasText():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event):
+        """Event when dropping items onto widget."""
+        # Get the data attached to this event.
+        mime_data = event.mimeData()
+
+        # Get text data which corresponds to node paths (or files).
+        data = str(mime_data.text())
+        paths = data.split(",")
+
+        # Process any urls (files).
+        if mime_data.hasUrls():
+            for url in mime_data.urls():
+                # Only care about actual files on disk.
+                if not url.scheme() == "file":
+                    continue
+
+                # Extract file path.
+                path = str(url.toLocalFile())
+
+                # Load a .json file that exists on disk.
+                if os.path.exists(path):
+                    ext = os.path.splitext(path)[-1]
+
+                    if ext == ".json":
+                        manager.MANAGER.load(path)
+
+        # Process paths, looking for nodes.  Any file paths represented by
+        # urls that were handled above will also be in this list because they
+        # are strings but will be ignored below since the call to hou.node()
+        # will not return anything.
+        for path in paths:
+            # Find the node.
+            node = hou.node(path)
+
+            if node is None:
+                continue
+
+            # Can only import from Mantra nodes.
+            if node.type() != hou.nodeType("Driver/ifd"):
+                continue
+
+            num_aovs = node.evalParm("vm_numaux")
+
+            if not num_aovs:
+                continue
+
+            # Get AOV objects from multiparms.
+            aovs = utils.buildAOVsFromMultiparm(node)
+
+            # Launch the Create New AOV dialog on each AOV.
+            for aov in aovs:
+                ht.sohohooks.aovs.dialogs.createNewAOV(aov)
+
     def editSelected(self):
         """Edit selected nodes."""
         self.editSelectedAOVs()
@@ -117,16 +179,8 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
         aovs = [node.item for node in self.getSelectedNodes()
                 if isinstance(node.item, AOV)]
 
-        active = QtGui.QApplication.instance().activeWindow()
-
         for aov in aovs:
-            dialog = ht.sohohooks.aovs.dialogs.AOVDialog(
-                ht.sohohooks.aovs.dialogs.DialogOperation.Edit,
-                active
-            )
-
-            dialog.initFromAOV(aov)
-            dialog.show()
+            ht.sohohooks.aovs.dialogs.editAOV(aov)
 
     def editSelectedGroups(self):
         """Edit selected AOVs."""
@@ -135,6 +189,7 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
 
         active = QtGui.QApplication.instance().activeWindow()
 
+        # TODO: Move to function in dialogs and handle group update.
         for group in groups:
             dialog = ht.sohohooks.aovs.dialogs.AOVGroupDialog(
                 ht.sohohooks.aovs.dialogs.DialogOperation.Edit,
@@ -421,7 +476,7 @@ class AOVInstallBarWidget(QtGui.QWidget):
         )
         self.reload.setIconSize(QtCore.QSize(14, 14))
         self.reload.setMaximumSize(QtCore.QSize(20, 20))
-        self.reload.setToolTip("Reload the AOV List")
+        self.reload.setToolTip("Refresh the tree display.")
         self.reload.setFlat(True)
 
         # =====================================================================
@@ -505,7 +560,7 @@ class AvailableAOVsToolBar(AOVViewerToolBar):
 
         new_aov_action = QtGui.QAction(
             QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/create_aov.png"),
-            "Create new AOV.",
+            "Create a new AOV.",
             self,
             triggered=ht.sohohooks.aovs.dialogs.createNewAOV
         )
@@ -575,9 +630,9 @@ class AvailableAOVsToolBar(AOVViewerToolBar):
 
         load_file_action = QtGui.QAction(
             QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/file.png"),
-            "Load AOVs from a .json file.",
+            "Load AOVs from .json files.",
             self,
-            triggered=manager.loadJsonFile
+            triggered=manager.loadJsonFiles
         )
 
         load_file_button.setDefaultAction(load_file_action)
@@ -821,11 +876,11 @@ class AOVsToAddTreeWidget(QtGui.QTreeView):
 
     def dragEnterEvent(self, event):
         """Event occuring when something is dragged into the widget."""
-        #print event.dropAction()
-
+        # Dropping our items.
         if event.mimeData().hasFormat("text/csv"):
             event.acceptProposedAction()
 
+        # Dropping Houdini nodes.
         elif event.mimeData().hasFormat("text/plain"):
             event.acceptProposedAction()
         else:
@@ -863,12 +918,20 @@ class AOVsToAddTreeWidget(QtGui.QTreeView):
                 node = hou.node(path)
 
                 if node is not None:
+                    value = ""
                     aov_parm = node.parm("auto_aovs")
 
                     if aov_parm is not None:
                         value = aov_parm.eval()
-                        new_data.extend(manager.MANAGER.getAOVsFromString(value))
 
+                    names = utils.getAOVNamesFromMultiparm(node)
+                    if names:
+                        value = "{} {}".format(value, " ".join(names))
+
+                    aovs = manager.MANAGER.getAOVsFromString(value)
+
+                    if aovs:
+                        new_data.extend(aovs)
                         found_nodes = True
 
             # Allow for Ctrl + Drop to extract groups.
@@ -1174,21 +1237,29 @@ class AOVsToAddToolBar(AOVViewerToolBar):
     # =========================================================================
 
     def loadFromNode(self):
-        """Populate the tree with AOVs and AOVGroups assigned to a node."""
+        """Populate the tree with AOVs and AOVGroups assigned to selected
+        nodes.
+
+        """
         nodes = utils.findSelectedMantraNodes()
-
-        if not nodes:
-            return
-
-        mantra = nodes[0]
 
         items = []
 
-        if mantra.parm("auto_aovs") is not None:
-            value = mantra.evalParm("auto_aovs")
+        for node in nodes:
+            value = ""
+
+            if node.parm("auto_aovs") is not None:
+                value = node.evalParm("auto_aovs")
+
+            names = utils.getAOVNamesFromMultiparm(node)
+
+            if names:
+                value = "{} {}".format(value, " ".join(names))
+
             items.extend(manager.MANAGER.getAOVsFromString(value))
 
-        self.installSignal.emit(items)
+        if items:
+            self.installSignal.emit(items)
 
 
 class AOVsToAddWidget(QtGui.QWidget):
