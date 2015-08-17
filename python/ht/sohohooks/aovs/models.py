@@ -175,6 +175,10 @@ class AOVBaseNode(TreeNode):
         """AOV related item represented by this node."""
         return self._item
 
+    @item.setter
+    def item(self, item):
+        self._item = item
+
     @property
     def path(self):
         """File path of this nodes item."""
@@ -211,9 +215,9 @@ class AOVNode(AOVBaseNode):
         """The AOV object represented by this node."""
         return self.item
 
-    #@property
-    #def group(self):
-        #return self.parent.group
+    @aov.setter
+    def aov(self, aov):
+        self.item = aov
 
     # =========================================================================
     # METHODS
@@ -296,6 +300,10 @@ class AOVGroupNode(AOVBaseNode):
     def group(self):
         """The AOVGroup object represented by this node."""
         return self.item
+
+    @group.setter
+    def group(self, group):
+        self.item = group
 
     @property
     def name(self):
@@ -627,13 +635,34 @@ class AOVSelectModel(BaseAOVTreeModel):
 
         parentNode = self.getNode(index)
 
-        position = len(parentNode.children)
+        # Check to see if an AOV of the same name already exists.  If it does
+        # then we want to just update the internal item for the node.
+        for row, child in enumerate(parentNode.children):
+            # Check the child's AOV against the one to be added.
+            if child.aov == aov:
+                # Update the internal item.
+                child.aov = aov
 
-        self.beginInsertRows(index, position, position)
+                existing_index = self.index(row, 0, index)
 
-        AOVNode(aov, parentNode)
+                # Signal the internal data changed.
+                self.dataChanged.emit(
+                    existing_index,
+                    existing_index
+                )
 
-        self.endInsertRows()
+                # We're done here.
+                break
+
+        # Didn't find an existing one so insert a new node.
+        else:
+            position = len(parentNode.children)
+
+            self.beginInsertRows(index, position, position)
+
+            AOVNode(aov, parentNode)
+
+            self.endInsertRows()
 
         return True
 
@@ -643,13 +672,33 @@ class AOVSelectModel(BaseAOVTreeModel):
 
         parentNode = self.getNode(index)
 
-        position = len(parentNode.children)
+        # Check to see if an AOV Group of the same name already exists.  If it
+        # does then we want to just update the internal item for the node.
+        for row, child in enumerate(parentNode.children):
+            # Check the child's group against the one to be added.
+            if child.group == group:
+                # Update the internal item.
+                child.group = group
 
-        self.beginInsertRows(index, position, position)
+                existing_index = self.index(row, 0, index)
 
-        AOVGroupNode(group, parentNode)
+                # Signal the internal data changed.
+                self.dataChanged.emit(
+                    existing_index,
+                    existing_index
+                )
 
-        self.endInsertRows()
+                # We're done here.
+                break
+
+        else:
+            position = len(parentNode.children)
+
+            self.beginInsertRows(index, position, position)
+
+            AOVGroupNode(group, parentNode)
+
+            self.endInsertRows()
 
         return True
 
@@ -700,7 +749,7 @@ class AOVSelectModel(BaseAOVTreeModel):
         row = 0
         for child in parentNode.children:
             if child.group == group:
-                idx = self.index(row, 0, index)
+                child_index = self.index(row, 0, index)
 
                 num_current_children = len(child.children)
                 num_new_children = len(group.aovs)
@@ -709,7 +758,7 @@ class AOVSelectModel(BaseAOVTreeModel):
                     num_to_add = num_new_children - num_current_children
 
                     self.beginInsertRows(
-                        idx,
+                        child_index,
                         num_current_children,
                         num_current_children + num_to_add - 1
                     )
@@ -725,7 +774,7 @@ class AOVSelectModel(BaseAOVTreeModel):
                     num_to_remove = num_current_children - num_new_children
 
                     self.beginRemoveRows(
-                        idx,
+                        child_index,
                         num_current_children-num_to_remove,
                         num_current_children-1
                     )
@@ -740,18 +789,14 @@ class AOVSelectModel(BaseAOVTreeModel):
                 else:
                     child.removeAllChildren()
 
-                    start_idx = self.index(0, 0, idx)
-                    end_idx = self.index(num_current_children-1, 0, idx)
+                    start_idx = self.index(0, 0, child_index)
+                    end_idx = self.index(num_current_children-1, 0, child_index)
 
                     for aov in group.aovs:
                         AOVNode(aov, child)
 
                     self.dataChanged.emit(start_idx, end_idx)
 
-                if self.isInstalled(child):
-                    print "shit"
-
-                #self.dataChanged.emit(index, index)
                 break
 
             row += 1
