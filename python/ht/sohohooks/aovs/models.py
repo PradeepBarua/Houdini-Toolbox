@@ -867,12 +867,12 @@ class AOVsToAddModel(BaseAOVTreeModel):
 
         return True
 
-    def removeIndex(self, idx):
+    def removeIndex(self, index):
         """Remove an index."""
         parent = QtCore.QModelIndex()
         parentNode = self.getNode(parent)
 
-        row = idx.row()
+        row = index.row()
 
         self.beginRemoveRows(parent, row, row)
 
