@@ -355,6 +355,9 @@ class AOVDialog(QtGui.QDialog):
         self.priority.setMinimum(-1)
         self.priority.setValue(-1)
 
+        if self._operation == DialogOperation.New:
+            self.priority.valueChanged.connect(self.validateVariableName)
+
         # =====================================================================
 
         grid_layout.setRowMinimumHeight(16, 25)
@@ -463,6 +466,27 @@ class AOVDialog(QtGui.QDialog):
             self._variable_valid = False
             self.status_widget.addError(0, "Invalid variable name")
 
+        elif self._operation == DialogOperation.New:
+            if variable_name in manager.MANAGER.aovs:
+                aov = manager.MANAGER.aovs[variable_name]
+
+                priority = self.priority.value()
+
+                if priority > aov.priority:
+                    msg = "This definition will have priority for {}".format(
+                        variable_name,
+                    )
+
+                    self.status_widget.addInfo(0, msg)
+
+                else:
+                    msg = "Variable {} already exists with priority {}".format(
+                        variable_name,
+                        aov.priority
+                    )
+
+                    self.status_widget.addWarning(0, msg)
+
         self.validateAllValues()
 
 
@@ -520,7 +544,11 @@ class AOVGroupDialog(QtGui.QDialog):
         file_path = os.path.expandvars(self.file_widget.getPath())
 
         group.path = file_path
-        group.comment = self.comment.text()
+
+        comment = self.comment.text()
+
+        if comment:
+            group.comment = comment
 
         # Find the AOVs to be in this group.
         aovs = self.aov_list.getSelectedAOVs()
@@ -598,6 +626,19 @@ class AOVGroupDialog(QtGui.QDialog):
         self.comment.setToolTip(
             "Optional comment, eg. 'This group is for X'."
         )
+
+        # ====================================================================
+
+        grid_layout.addWidget(QtGui.QLabel("Priority"), 4, 0)
+
+        self.priority = widgets.CustomSpinBox()
+        grid_layout.addWidget(self.priority, 4, 1)
+
+        self.priority.setMinimum(-1)
+        self.priority.setValue(-1)
+
+        if self._operation == DialogOperation.New:
+            self.priority.valueChanged.connect(self.validateGroupName)
 
         # ====================================================================
 
@@ -724,8 +765,6 @@ class AOVGroupDialog(QtGui.QDialog):
 
         self._group_name_valid = True
 
-        msg = "Invalid group name"
-
         group_name = self.group_name.text()
 
         # Only allow letters, numbers and underscores.
@@ -733,14 +772,29 @@ class AOVGroupDialog(QtGui.QDialog):
 
         if result is None:
             self._group_name_valid = False
-            self.status_widget.addError(0, msg)
+            self.status_widget.addError(0, "Invalid group name")
 
         # Check if the group exists when creating a new group.
         elif self._operation == DialogOperation.New:
             if group_name in manager.MANAGER.groups:
-                self._group_name_valid = False
-                msg = "Group already exists"
-                self.status_widget.addWarning(0, msg)
+                group = manager.MANAGER.groups[group_name]
+
+                priority = self.priority.value()
+
+                if priority > group.priority:
+                    msg = "This definition will have priority for {}".format(
+                        group_name,
+                    )
+
+                    self.status_widget.addInfo(0, msg)
+
+                else:
+                    msg = "Group {} already exists with priority {}".format(
+                        group_name,
+                        group.priority
+                    )
+
+                    self.status_widget.addWarning(0, msg)
 
         self.validateAllValues()
 
@@ -976,22 +1030,38 @@ class AOVGroupInfoDialog(QtGui.QDialog):
 
         self.table.resizeColumnToContents(0)
 
-
 # =========================================================================
-# METHODS
+# FUNCTIONS
 # =========================================================================
 
-def createNewAOV():
+def createNewAOV(aov=None):
     """Display the Create AOV dialog."""
     active = QtGui.QApplication.instance().activeWindow()
 
-    aov_dialog = AOVDialog(parent=active)
+    dialog = AOVDialog(parent=active)
 
-    aov_dialog.newAOVSignal.connect(
+    if aov is not None:
+        dialog.initFromAOV(aov)
+
+    dialog.newAOVSignal.connect(
         manager.MANAGER.addAOV
     )
 
-    aov_dialog.show()
+    dialog.show()
+
+
+def editAOV(aov):
+    """Display the Edit AOV dialog for an AOV."""
+    active = QtGui.QApplication.instance().activeWindow()
+
+    dialog = AOVDialog(
+        DialogOperation.Edit,
+        active
+    )
+
+    dialog.initFromAOV(aov)
+    dialog.show()
+
 
 def createNewGroup(aovs=()):
     """Display the Create AOV Group dialog."""
