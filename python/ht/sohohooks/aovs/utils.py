@@ -126,6 +126,46 @@ def applyToNodeAsParms(node, aovs):
             node.parm("vm_lightexport_select{}".format(idx)).set(aov.lightexport_select)
 
 
+def buildAOVsFromMultiparm(node):
+    """Build a list of AOVs from a Mantra node's multiparm."""
+    aovs = []
+
+    num_aovs = node.evalParm("vm_numaux")
+
+    for idx in range(1, num_aovs+1):
+        aov_data = {
+            "variable": node.evalParm("vm_variable_plane{}".format(idx)),
+            "vextype": node.evalParm("vm_vextype_plane{}".format(idx))
+        }
+
+        channel = node.evalParm("vm_channel_plane{}".format(idx))
+        if channel:
+            aov_data["channel"] = channel
+
+        aov_data["quantize"] = node.evalParm("vm_quantize_plane{}".format(idx))
+
+        aov_data["sfilter"] = node.evalParm("vm_sfilter_plane{}".format(idx))
+
+        pfilter = node.evalParm("vm_pfilter_plane{}".format(idx))
+
+        if pfilter:
+            aov_data["pfilter"] = node.evalParm("vm_pfilter_plane{}".format(idx))
+
+        aov_data["componentexport"] = node.evalParm("vm_componentexport{}".format(idx))
+
+        lightexport = node.evalParm("vm_lightexport{}".format(idx))
+        lightexport = data.LIGHTEXPORT_MENU_ITEMS[lightexport][0]
+
+        if lightexport:
+            aov_data["lightexport"] = lightexport
+            aov_data["lightexport_scope"] = node.evalParm("vm_lightexport_scope{}".format(idx))
+            aov_data["lighexport_select"] = node.evalParm("vm_lightexport_select{}".format(idx))
+
+        aovs.append(AOV(aov_data))
+
+    return aovs
+
+
 def filePathIsValid(path):
     """Check if a file path is valid."""
     if path:
@@ -173,6 +213,18 @@ def flattenList(elements):
                 aovs.add(aov)
 
     return aovs
+
+
+def getAOVNamesFromMultiparm(node):
+    """Get a list of AOV names from a Mantra node's multiparm."""
+    names = []
+
+    num_aovs = node.evalParm("vm_numaux")
+
+    for idx in range(1, num_aovs+1):
+        names.append(node.evalParm("vm_variable_plane{}".format(idx)))
+
+    return names
 
 
 def getIconFromGroup(group):
