@@ -418,17 +418,21 @@ def findOrCreateSessionAOVManager(rebuild=False):
     return manager
 
 
-def loadJsonFile(self):
-    """Load a .json file into the manager."""
-    path = hou.ui.selectFile(
+def loadJsonFiles():
+    """Load .json files into the manager."""
+    result = hou.ui.selectFile(
         pattern="*.json",
-        chooser_mode=hou.fileChooserMode.Read
+        chooser_mode=hou.fileChooserMode.Read,
+        multiple_select=True,
     )
 
-    path = os.path.expandvars(path)
+    paths = result.split(" ; ")
 
-    if os.path.exists(path):
-        MANAGER.load(path)
+    for path in paths:
+        path = os.path.expandvars(path)
+
+        if os.path.exists(path):
+            MANAGER.load(path)
 
 # =============================================================================
 # GLOBALS
