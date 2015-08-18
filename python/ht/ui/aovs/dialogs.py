@@ -873,7 +873,7 @@ class AOVInfoDialog(QtGui.QDialog):
         self.button_box.accepted.connect(self.accept)
 
         edit_button = QtGui.QPushButton(
-            QtGui.QIcon(":/ht/rsc/icons/sohohooks/aovs/edit.png"),
+            QtGui.QIcon(":/ht/rsc/icons/aovs/edit.png"),
             "Edit"
         )
 
@@ -983,7 +983,7 @@ class AOVGroupInfoDialog(QtGui.QDialog):
 
         # Button to launch the Edit dialog on the current group.
         edit_button = QtGui.QPushButton(
-            QtGui.QIcon(":/ht/rsc/icons/sohohooks/aovs/edit.png"),
+            QtGui.QIcon(":/ht/rsc/icons/aovs/edit.png"),
             "Edit"
         )
 

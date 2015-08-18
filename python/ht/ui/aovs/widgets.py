@@ -595,7 +595,7 @@ class AOVInstallBarWidget(QtGui.QWidget):
 
         self.reload.setIcon(
             QtGui.QIcon(
-                ":ht/rsc/icons/sohohooks/aovs/reload.png"
+                ":ht/rsc/icons/aovs/reload.png"
             )
         )
         self.reload.setIconSize(QtCore.QSize(14, 14))
@@ -614,7 +614,7 @@ class AOVInstallBarWidget(QtGui.QWidget):
 
         self.install_button.setIcon(
             QtGui.QIcon(
-                ":ht/rsc/icons/sohohooks/aovs/move_to_right.png"
+                ":ht/rsc/icons/aovs/move_to_right.png"
             )
         )
         self.install_button.setIconSize(QtCore.QSize(14, 14))
@@ -632,7 +632,7 @@ class AOVInstallBarWidget(QtGui.QWidget):
 
         self.uninstall_button.setIcon(
             QtGui.QIcon(
-                ":ht/rsc/icons/sohohooks/aovs/move_to_left.png"
+                ":ht/rsc/icons/aovs/move_to_left.png"
             )
         )
         self.uninstall_button.setIconSize(QtCore.QSize(14, 14))
@@ -683,7 +683,7 @@ class AvailableAOVsToolBar(AOVViewerToolBar):
         self.addWidget(new_aov_button)
 
         new_aov_action = QtGui.QAction(
-            QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/create_aov.png"),
+            QtGui.QIcon(":ht/rsc/icons/aovs/create_aov.png"),
             "Create a new AOV.",
             self,
             triggered=ht.ui.aovs.dialogs.createNewAOV
@@ -698,7 +698,7 @@ class AvailableAOVsToolBar(AOVViewerToolBar):
         self.addWidget(self.edit_aov_button)
 
         edit_aov_action = QtGui.QAction(
-            QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/edit_aov.png"),
+            QtGui.QIcon(":ht/rsc/icons/aovs/edit_aov.png"),
             "Edit AOV.",
             self,
             triggered=self.editAOVSignal.emit
@@ -718,7 +718,7 @@ class AvailableAOVsToolBar(AOVViewerToolBar):
         self.addWidget(new_group_button)
 
         new_group_action = QtGui.QAction(
-            QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/create_group.png"),
+            QtGui.QIcon(":ht/rsc/icons/aovs/create_group.png"),
             "Create a new AOV group.",
             self,
             triggered=self.newGroupSignal.emit
@@ -733,7 +733,7 @@ class AvailableAOVsToolBar(AOVViewerToolBar):
         self.addWidget(self.edit_group_button)
 
         edit_group_action = QtGui.QAction(
-            QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/edit_group.png"),
+            QtGui.QIcon(":ht/rsc/icons/aovs/edit_group.png"),
             "Edit an AOV group.",
             self,
             triggered=self.editGroupSignal.emit
@@ -753,7 +753,7 @@ class AvailableAOVsToolBar(AOVViewerToolBar):
         self.addWidget(load_file_button)
 
         load_file_action = QtGui.QAction(
-            QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/file.png"),
+            QtGui.QIcon(":ht/rsc/icons/aovs/file.png"),
             "Load AOVs from .json files.",
             self,
             triggered=manager.loadJsonFiles
@@ -775,7 +775,7 @@ class AvailableAOVsToolBar(AOVViewerToolBar):
         self.addWidget(self.info_button)
 
         info_action = QtGui.QAction(
-            QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/info.png"),
+            QtGui.QIcon(":ht/rsc/icons/aovs/info.png"),
             "Display information about the AOV or group.",
             self,
             triggered=self.displayInfoSignal.emit
@@ -1265,7 +1265,7 @@ class AOVsToAddToolBar(AOVViewerToolBar):
         self.addWidget(self.apply_button)
 
         apply_action = QtGui.QAction(
-            QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/render.png"),
+            QtGui.QIcon(":ht/rsc/icons/aovs/render.png"),
             "Apply",
             self,
             triggered=self.applyAtRenderTimeSignal.emit
@@ -1284,7 +1284,7 @@ class AOVsToAddToolBar(AOVViewerToolBar):
         self.addWidget(self.apply_as_parms_button)
 
         parms_action = QtGui.QAction(
-            QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/parameters.png"),
+            QtGui.QIcon(":ht/rsc/icons/aovs/parameters.png"),
             "Apply AOVs to selected nodes as parameters.",
             self,
             triggered=self.applyToParmsSignal.emit
@@ -1305,7 +1305,7 @@ class AOVsToAddToolBar(AOVViewerToolBar):
         self.addWidget(self.new_group_button)
 
         new_group_action = QtGui.QAction(
-            QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/create_group.png"),
+            QtGui.QIcon(":ht/rsc/icons/aovs/create_group.png"),
             "Create a new group from chosen AOVs.",
             self,
             triggered=self.newGroupSignal.emit
@@ -1325,7 +1325,7 @@ class AOVsToAddToolBar(AOVViewerToolBar):
         self.addWidget(load_button)
 
         load_action = QtGui.QAction(
-            QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/from_node.png"),
+            QtGui.QIcon(":ht/rsc/icons/aovs/from_node.png"),
             "Load AOVs from a node",
             self,
             triggered=self.loadFromNode
@@ -1347,7 +1347,7 @@ class AOVsToAddToolBar(AOVViewerToolBar):
         self.addWidget(self.clear_button)
 
         clear_action = QtGui.QAction(
-            QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/clear.png"),
+            QtGui.QIcon(":ht/rsc/icons/aovs/clear.png"),
             "Clear all AOVs",
             self,
             triggered=self.clearAOVsSignal.emit
@@ -1422,7 +1422,7 @@ class AOVsToAddWidget(QtGui.QWidget):
         # =====================================================================
 
         hbutton = QtGui.QPushButton(
-            QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/help.png"),
+            QtGui.QIcon(":ht/rsc/icons/aovs/help.png"),
             ""
         )
         top_layout.addWidget(hbutton)
@@ -1698,14 +1698,14 @@ QSpinBox::down-button {
  }
 
 QSpinBox::up-arrow {
-    image: url(:ht/rsc/icons/sohohooks/aovs/button_up.png) 1;
+    image: url(:ht/rsc/icons/aovs/button_up.png) 1;
     width: 14px;
     height: 14px;
 }
 
 QSpinBox::down-arrow
 {
-    image: url(:ht/rsc/icons/sohohooks/aovs/button_down.png) 1;
+    image: url(:ht/rsc/icons/aovs/button_down.png) 1;
     width: 14px;
     height: 14px;
 }
@@ -1737,7 +1737,7 @@ class FileChooser(QtGui.QWidget):
         # =====================================================================
 
         self.button = QtGui.QPushButton(
-            QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/chooser_file.png"),
+            QtGui.QIcon(":ht/rsc/icons/aovs/chooser_file.png"),
             ""
         )
         layout.addWidget(self.button)
@@ -1951,8 +1951,8 @@ class StatusMessageWidget(QtGui.QWidget):
 
         layout.setContentsMargins(0, 0, 0, 0)
 
-        self.info_pixmap = QtGui.QIcon(":/ht/rsc/icons/sohohooks/aovs/dialog_info.png").pixmap(24, 24)
-        self.warning_pixmap = QtGui.QIcon(":/ht/rsc/icons/sohohooks/aovs/warning.png").pixmap(24, 24)
+        self.info_pixmap = QtGui.QIcon(":/ht/rsc/icons/aovs/dialog_info.png").pixmap(24, 24)
+        self.warning_pixmap = QtGui.QIcon(":/ht/rsc/icons/aovs/warning.png").pixmap(24, 24)
         self.error_pixmap = QtGui.QIcon(":/ht/rsc/icons/sohohooks/aovs/error.png").pixmap(24, 24)
 
         # =====================================================================

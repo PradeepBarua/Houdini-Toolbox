@@ -254,13 +254,13 @@ def getIconFromGroup(group):
     if group.icon is not None:
         return QtGui.QIcon(group.icon)
 
-    return QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/group.png")
+    return QtGui.QIcon(":ht/rsc/icons/aovs/group.png")
 
 
 def getIconFromVexType(vextype):
     """Get the icon corresponding to a VEX type."""
     return QtGui.QIcon(
-        ":ht/rsc/icons/sohohooks/aovs/{}.png".format(
+        ":ht/rsc/icons/aovs/{}.png".format(
             vextype
         )
     )
