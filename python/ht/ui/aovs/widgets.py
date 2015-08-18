@@ -22,6 +22,129 @@ import hou
 # CLASSES
 # =============================================================================
 
+class AOVManagerWidget(QtGui.QWidget):
+    """Primary AOV Manager widget."""
+
+    invalidAOVSelectedSignal = QtCore.Signal()
+    selectedAOVContainedSignal = QtCore.Signal(bool)
+
+    # =========================================================================
+    # CONSTRUCTORS
+    # =========================================================================
+
+    def __init__(self, parent=None):
+        super(AOVManagerWidget, self).__init__(parent)
+
+        self._interface_name = None
+
+        self.initUI()
+
+        # Left/right button action signals.
+        self.select_widget.installSignal.connect(self.to_add_widget.installListener)
+        self.select_widget.uninstallSignal.connect(self.to_add_widget.uninstallListener)
+
+        # Update left/right buttons after data changed.
+        self.select_widget.aov_tree.selectionChangedSignal.connect(self.checkNodeAdded)
+        self.to_add_widget.updateEnabledSignal.connect(self.checkNodeAdded)
+
+        # Left/right button enabling/disabling.
+        self.selectedAOVContainedSignal.connect(self.select_widget.install_bar.enableHandler)
+        self.invalidAOVSelectedSignal.connect(self.select_widget.install_bar.disableHandler)
+
+        # Really need a signal?  Maybe just refresh everything?
+        manager.MANAGER.initInterface()
+        manager.MANAGER.interface.aovAddedSignal.connect(self.select_widget.aov_tree.insertAOV)
+        manager.MANAGER.interface.groupAddedSignal.connect(self.select_widget.aov_tree.insertGroup)
+        #dialogs.AOVGroupDialog.groupUpdatedSignal.connect(self.select_widget.aov_tree.updateGroup)
+
+        self.to_add_widget.tree.model().sourceModel().insertedItemsSignal.connect(
+            self.select_widget.markItemsInstalled
+        )
+
+        self.to_add_widget.tree.model().sourceModel().removedItemsSignal.connect(
+            self.select_widget.markItemsUninstalled
+        )
+
+        self.to_add_widget.displayHelpSignal.connect(self.displayHelp)
+
+    # =========================================================================
+    # PROPERTIES
+    # =========================================================================
+
+    @property
+    def interface_name(self):
+        """Houdini interface name."""
+        return self._interface_name
+
+    @interface_name.setter
+    def interface_name(self, name):
+        self._interface_name = name
+
+    # =========================================================================
+    # METHODS
+    # =========================================================================
+
+    def checkNodeAdded(self):
+        """This function detects whether selected tree nodes are currently
+        in the 'AOVs to Apply' tree.
+
+        """
+        # Get selected nodes in the 'AOVs and Groups' tree.
+        nodes = self.select_widget.getSelectedNodes()
+
+        if nodes:
+            # Are any contained.
+            contains = False
+
+            for node in nodes:
+                # See if the node corresponds to an index in the target view.
+                if self.to_add_widget.tree.nodeIndexInModel(node) is not None:
+                    contains = True
+                    break
+
+            # Notify the move to left/right buttons on the status.
+            self.selectedAOVContainedSignal.emit(contains)
+
+        else:
+            self.invalidAOVSelectedSignal.emit()
+
+    def displayHelp(self):
+        """Display help for the AOV Viewer."""
+        browser = None
+
+        for pane_tab in hou.ui.paneTabs():
+            if isinstance(pane_tab, hou.HelpBrowser):
+                if pane_tab.isFloating():
+                    browser = pane_tab
+                    break
+
+        if browser is None:
+            desktop = hou.ui.curDesktop()
+            browser = desktop.createFloatingPaneTab(hou.paneTabType.HelpBrowser)
+
+        browser.displayHelpPyPanel(self.interface_name)
+
+    def initUI(self):
+        """Initliaze the UI."""
+        layout = QtGui.QVBoxLayout()
+        self.setLayout(layout)
+
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        # =====================================================================
+
+        splitter = QtGui.QSplitter()
+        layout.addWidget(splitter)
+
+        self.select_widget = AOVSelectWidget()
+        splitter.addWidget(self.select_widget)
+
+        # =====================================================================
+
+        self.to_add_widget = AOVsToAddWidget()
+        splitter.addWidget(self.to_add_widget)
+
+
 class AOVViewerToolBar(QtGui.QToolBar):
     """This class represents a base toolbar class used for AOVs."""
 
@@ -168,7 +291,7 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
 
             # Launch the Create New AOV dialog on each AOV.
             for aov in aovs:
-                ht.sohohooks.aovs.dialogs.createNewAOV(aov)
+                ht.ui.aovs.dialogs.createNewAOV(aov)
 
     def editSelected(self):
         """Edit selected nodes."""
@@ -181,7 +304,7 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
                 if isinstance(node.item, AOV)]
 
         for aov in aovs:
-            ht.sohohooks.aovs.dialogs.editAOV(aov)
+            ht.ui.aovs.dialogs.editAOV(aov)
 
     def editSelectedGroups(self):
         """Edit selected AOVs."""
@@ -192,8 +315,8 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
 
         # TODO: Move to function in dialogs and handle group update.
         for group in groups:
-            dialog = ht.sohohooks.aovs.dialogs.AOVGroupDialog(
-                ht.sohohooks.aovs.dialogs.DialogOperation.Edit,
+            dialog = ht.ui.aovs.dialogs.AOVGroupDialog(
+                ht.ui.aovs.dialogs.DialogOperation.Edit,
                 active
             )
 
@@ -405,7 +528,7 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
         active = QtGui.QApplication.instance().activeWindow()
 
         for node in filtered:
-            info_dialog = ht.sohohooks.aovs.dialogs.AOVInfoDialog(
+            info_dialog = ht.ui.aovs.dialogs.AOVInfoDialog(
                 node.aov,
                 active
             )
@@ -422,7 +545,7 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
         active = QtGui.QApplication.instance().activeWindow()
 
         for node in filtered:
-            info_dialog = ht.sohohooks.aovs.dialogs.AOVGroupInfoDialog(
+            info_dialog = ht.ui.aovs.dialogs.AOVGroupInfoDialog(
                 node.group,
                 active
             )
@@ -563,7 +686,7 @@ class AvailableAOVsToolBar(AOVViewerToolBar):
             QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/create_aov.png"),
             "Create a new AOV.",
             self,
-            triggered=ht.sohohooks.aovs.dialogs.createNewAOV
+            triggered=ht.ui.aovs.dialogs.createNewAOV
         )
 
         new_aov_button.setDefaultAction(new_aov_action)
@@ -763,7 +886,7 @@ class AOVSelectWidget(QtGui.QWidget):
         aovs = [node.item for node in self.aov_tree.getSelectedNodes()
                 if isinstance(node.item, AOV)]
 
-        ht.sohohooks.aovs.dialogs.createNewGroup(aovs)
+        ht.ui.aovs.dialogs.createNewGroup(aovs)
 
     def displayInfo(self):
         """Display information based on the tree selection."""
@@ -1368,7 +1491,7 @@ class AOVsToAddWidget(QtGui.QWidget):
         """Create a new AOVGroup from items in the tree."""
         aovs = utils.flattenList(self.tree.getElementsToAdd())
 
-        ht.sohohooks.aovs.dialogs.createNewGroup(aovs)
+        ht.ui.aovs.dialogs.createNewGroup(aovs)
 
     def dataClearedHandler(self):
         """Handle the tree being cleared."""

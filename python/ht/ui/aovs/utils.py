@@ -5,7 +5,7 @@
 # =============================================================================
 
 # Python Imports
-from PySide import QtGui
+from PySide import QtCore, QtGui
 import json
 import os
 
@@ -16,6 +16,27 @@ from ht.utils import convertFromUnicode
 
 # Houdini Imports
 import hou
+
+# =============================================================================
+# CLASSES
+# =============================================================================
+
+class AOVViewerInterface(QtCore.QObject):
+    """This class acts as an interface between viewer related UI elements
+    and the AOVManager.
+
+    """
+
+    # Signals for when AOVs are created or changed.
+    aovAddedSignal = QtCore.Signal(AOV)
+    aovUpdatedSignal = QtCore.Signal(AOV)
+
+    # Signals for when AOVGroups are created or changed.
+    groupAddedSignal = QtCore.Signal(AOVGroup)
+    groupUpdatedSignal = QtCore.Signal(AOVGroup)
+
+    def __init__(self, parent=None):
+        super(AOVViewerInterface, self).__init__(parent)
 
 # =============================================================================
 # NON-PUBLIC FUNCTIONS

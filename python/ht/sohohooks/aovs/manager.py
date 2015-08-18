@@ -195,8 +195,8 @@ class AOVManager(object):
 
     def initInterface(self):
         """Initialize an AOVViewerInterface for this manager."""
-        import ht.sohohooks.aovs.viewer
-        self._interface = ht.sohohooks.aovs.viewer.AOVViewerInterface()
+        import ht.ui.aovs.utils
+        self._interface = ht.ui.aovs.utils.AOVViewerInterface()
 
     def load(self, path):
         """Load a file."""
