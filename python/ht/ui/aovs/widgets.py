@@ -1265,7 +1265,7 @@ class AOVsToAddToolBar(AOVViewerToolBar):
         self.addWidget(self.apply_button)
 
         apply_action = QtGui.QAction(
-            QtGui.QIcon(":ht/rsc/icons/aovs/render.png"),
+            QtGui.QIcon(":ht/rsc/icons/aovs/rendertime.png"),
             "Apply",
             self,
             triggered=self.applyAtRenderTimeSignal.emit
@@ -1284,7 +1284,7 @@ class AOVsToAddToolBar(AOVViewerToolBar):
         self.addWidget(self.apply_as_parms_button)
 
         parms_action = QtGui.QAction(
-            QtGui.QIcon(":ht/rsc/icons/aovs/parameters.png"),
+            QtGui.QIcon(":ht/rsc/icons/aovs/asparameters.png"),
             "Apply AOVs to selected nodes as parameters.",
             self,
             triggered=self.applyToParmsSignal.emit
