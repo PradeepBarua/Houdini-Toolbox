@@ -10,9 +10,10 @@ import os
 import pickle
 
 # Houdini Toolbox Imports
-from ht.sohohooks.aovs import manager, models, utils
+from ht.sohohooks.aovs import manager
 from ht.sohohooks.aovs.aov import AOV, AOVGroup
-import ht.sohohooks.aovs.dialogs
+from ht.ui.aovs import models, utils
+import ht.ui.aovs.dialogs
 
 # Houdini Imports
 import hou

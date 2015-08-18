@@ -9,7 +9,8 @@
 from PySide import QtCore, QtGui
 
 # Houdini Toolbox Imports
-from ht.sohohooks.aovs import aov, manager, models, widgets
+from ht.sohohooks.aovs import aov, manager
+from ht.ui.aovs import models, widgets
 import ht.ui.icons
 
 # Houdini Imports

@@ -10,8 +10,8 @@ import json
 import os
 
 # Houdini Toolbox Imports
-from ht.sohohooks.aovs import uidata
 from ht.sohohooks.aovs.aov import AOV, AOVGroup, ALLOWABLE_VALUES
+from ht.ui.aovs import uidata
 from ht.utils import convertFromUnicode
 
 # Houdini Imports

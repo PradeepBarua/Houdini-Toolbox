@@ -9,8 +9,9 @@ from PySide import QtCore, QtGui
 import pickle
 
 # Houdini Toolbox Imports
-from ht.sohohooks.aovs import manager, utils
+from ht.sohohooks.aovs import manager
 from ht.sohohooks.aovs.aov import AOV, AOVGroup
+from ht.ui.aovs import utils
 import ht.ui.icons
 
 # =============================================================================

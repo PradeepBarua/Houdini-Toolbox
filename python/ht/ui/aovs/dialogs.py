@@ -13,8 +13,9 @@ import os
 import re
 
 # Houdini Toolbox Imports
-from ht.sohohooks.aovs import manager, widgets, uidata, utils
+from ht.sohohooks.aovs import manager
 from ht.sohohooks.aovs.aov import AOV, AOVGroup
+from ht.ui.aovs import uidata, utils, widgets
 
 # Houdini Imports
 import hou
