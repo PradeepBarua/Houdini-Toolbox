@@ -49,7 +49,9 @@ class AOVDialog(QtGui.QDialog):
 
         self._operation = operation
 
-        self.setStyleSheet(hou.ui.qtStyleSheet())
+        self.setStyleSheet(
+            hou.ui.qtStyleSheet() + uidata.TOOLTIP_STYLE
+        )
 
         # UI elements are valid.
         self._variable_valid = False
@@ -130,6 +132,10 @@ class AOVDialog(QtGui.QDialog):
         self.newAOVSignal.emit(new_aov)
         return super(AOVDialog, self).accept()
 
+    def displayHelp(self):
+        """Display help for this dialog."""
+        utils.displayHelp("aov_dialog")
+
     def enableCreation(self, enable):
         """Enable the Ok button."""
         self.button_box.button(QtGui.QDialogButtonBox.Ok).setEnabled(enable)
@@ -185,6 +191,20 @@ class AOVDialog(QtGui.QDialog):
         """Initialize the UI."""
         layout = QtGui.QVBoxLayout()
         self.setLayout(layout)
+
+        # =====================================================================
+
+        help_layout = QtGui.QHBoxLayout()
+        layout.addLayout(help_layout)
+
+        help_layout.addStretch(1)
+
+        help_button = widgets.HelpButton()
+        help_layout.addWidget(help_button)
+
+        help_button.clicked.connect(self.displayHelp)
+
+        # =====================================================================
 
         grid_layout = QtGui.QGridLayout()
         layout.addLayout(grid_layout)
@@ -507,7 +527,9 @@ class AOVGroupDialog(QtGui.QDialog):
 
         self._operation = operation
 
-        self.setStyleSheet(hou.ui.qtStyleSheet())
+        self.setStyleSheet(
+            hou.ui.qtStyleSheet() + uidata.TOOLTIP_STYLE
+        )
 
         # UI elements are valid.
         self._group_name_valid = False
@@ -570,6 +592,10 @@ class AOVGroupDialog(QtGui.QDialog):
 
         return super(AOVGroupDialog, self).accept()
 
+    def displayHelp(self):
+        """Display help for this dialog."""
+        utils.displayHelp("group_dialog")
+
     def enableCreation(self, enable):
         """Enable the Ok button."""
         self.button_box.button(QtGui.QDialogButtonBox.Ok).setEnabled(enable)
@@ -583,10 +609,25 @@ class AOVGroupDialog(QtGui.QDialog):
 
         self.setSelectedAOVs(group.aovs)
 
+    # TODO: Path for custom icon
     def initUI(self):
         """Intialize the UI."""
         layout = QtGui.QVBoxLayout()
         self.setLayout(layout)
+
+        # =====================================================================
+
+        help_layout = QtGui.QHBoxLayout()
+        layout.addLayout(help_layout)
+
+        help_layout.addStretch(1)
+
+        help_button = widgets.HelpButton()
+        help_layout.addWidget(help_button)
+
+        help_button.clicked.connect(self.displayHelp)
+
+        # =====================================================================
 
         grid_layout = QtGui.QGridLayout()
         layout.addLayout(grid_layout)
@@ -816,7 +857,9 @@ class AOVInfoDialog(QtGui.QDialog):
         self._aov = aov
 
         self.setWindowTitle("View AOV Info")
-        self.setStyleSheet(hou.ui.qtStyleSheet())
+        self.setStyleSheet(
+            hou.ui.qtStyleSheet() + uidata.TOOLTIP_STYLE
+        )
 
         self.initUI()
 
@@ -877,6 +920,8 @@ class AOVInfoDialog(QtGui.QDialog):
             "Edit"
         )
 
+        edit_button.setToolTip("Edit this AOV.")
+
         self.button_box.addButton(edit_button, QtGui.QDialogButtonBox.HelpRole)
         edit_button.clicked.connect(self.edit)
 
@@ -926,7 +971,9 @@ class AOVGroupInfoDialog(QtGui.QDialog):
         self._group = group
 
         self.setWindowTitle("View AOV Group Info")
-        self.setStyleSheet(hou.ui.qtStyleSheet())
+        self.setStyleSheet(
+            hou.ui.qtStyleSheet() + uidata.TOOLTIP_STYLE
+        )
 
         self.initUI()
 
@@ -986,6 +1033,8 @@ class AOVGroupInfoDialog(QtGui.QDialog):
             QtGui.QIcon(":/ht/rsc/icons/aovs/edit.png"),
             "Edit"
         )
+
+        edit_button.setToolTip("Edit this group.")
 
         # Use HelpRole to force the button to the left size of the dialog.
         self.button_box.addButton(edit_button, QtGui.QDialogButtonBox.HelpRole)

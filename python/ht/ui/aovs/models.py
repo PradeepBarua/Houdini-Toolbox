@@ -60,7 +60,7 @@ class TreeNode(object):
     @property
     def icon(self):
         """Icon for this node."""
-        return QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/root.png")
+        return QtGui.QIcon(":ht/rsc/icons/aovs/root.png")
 
     @property
     def name(self):
@@ -139,7 +139,7 @@ class FolderNode(TreeNode):
     @property
     def icon(self):
         """Node icon."""
-        return QtGui.QIcon(":ht/rsc/icons/sohohooks/aovs/folder.png")
+        return QtGui.QIcon(":ht/rsc/icons/aovs/folder.png")
 
     @property
     def items(self):

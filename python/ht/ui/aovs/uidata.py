@@ -60,3 +60,13 @@ VEXTYPE_MENU_ITEMS = (
     ("vector4", "Vector4 Type"),
     ("unitvector", "Unit Vector Type"),
 )
+
+# =============================================================================
+# STYLES
+# =============================================================================
+
+TOOLTIP_STYLE = """QToolTip {
+    background-color: black;
+    color: white;
+    border: 1px solid black;
+}"""

@@ -12,7 +12,7 @@ import pickle
 # Houdini Toolbox Imports
 from ht.sohohooks.aovs import manager
 from ht.sohohooks.aovs.aov import AOV, AOVGroup
-from ht.ui.aovs import models, utils
+from ht.ui.aovs import models, uidata, utils
 import ht.ui.aovs.dialogs
 
 # Houdini Imports
@@ -67,6 +67,8 @@ class AOVManagerWidget(QtGui.QWidget):
 
         self.to_add_widget.displayHelpSignal.connect(self.displayHelp)
 
+        self.setStyleSheet(uidata.TOOLTIP_STYLE)
+
     # =========================================================================
     # PROPERTIES
     # =========================================================================
@@ -110,19 +112,7 @@ class AOVManagerWidget(QtGui.QWidget):
 
     def displayHelp(self):
         """Display help for the AOV Viewer."""
-        browser = None
-
-        for pane_tab in hou.ui.paneTabs():
-            if isinstance(pane_tab, hou.HelpBrowser):
-                if pane_tab.isFloating():
-                    browser = pane_tab
-                    break
-
-        if browser is None:
-            desktop = hou.ui.curDesktop()
-            browser = desktop.createFloatingPaneTab(hou.paneTabType.HelpBrowser)
-
-        browser.displayHelpPyPanel(self.interface_name)
+        utils.displayHelp("aov_manager")
 
     def initUI(self):
         """Initliaze the UI."""
@@ -1326,7 +1316,7 @@ class AOVsToAddToolBar(AOVViewerToolBar):
 
         load_action = QtGui.QAction(
             QtGui.QIcon(":ht/rsc/icons/aovs/from_node.png"),
-            "Load AOVs from a node",
+            "Load AOVs from a node.",
             self,
             triggered=self.loadFromNode
         )
@@ -1348,7 +1338,7 @@ class AOVsToAddToolBar(AOVViewerToolBar):
 
         clear_action = QtGui.QAction(
             QtGui.QIcon(":ht/rsc/icons/aovs/clear.png"),
-            "Clear all AOVs",
+            "Clear all AOVs.",
             self,
             triggered=self.clearAOVsSignal.emit
         )
@@ -1421,18 +1411,11 @@ class AOVsToAddWidget(QtGui.QWidget):
 
         # =====================================================================
 
-        hbutton = QtGui.QPushButton(
-            QtGui.QIcon(":ht/rsc/icons/aovs/help.png"),
-            ""
-        )
-        top_layout.addWidget(hbutton)
+        help_button = HelpButton()
 
-        hbutton.setToolTip("Show help")
-        hbutton.setIconSize(QtCore.QSize(14, 14))
-        hbutton.setMaximumSize(QtCore.QSize(14, 14))
-        hbutton.setFlat(True)
+        top_layout.addWidget(help_button)
 
-        hbutton.clicked.connect(self.displayHelpSignal.emit)
+        help_button.clicked.connect(self.displayHelpSignal.emit)
 
         # =====================================================================
 
@@ -1815,6 +1798,22 @@ class FilterWidget(QtGui.QWidget):
         layout.addWidget(self.field)
 
         self.field.setToolTip("Filter the list of AOVs by name.")
+
+
+class HelpButton(QtGui.QPushButton):
+    """Generic Help button."""
+
+    def __init__(self, parent=None):
+        super(HelpButton, self).__init__(
+            QtGui.QIcon(":ht/rsc/icons/aovs/help.png"),
+            "",
+            parent=parent
+        )
+
+        self.setToolTip("Show Help.")
+        self.setIconSize(QtCore.QSize(14, 14))
+        self.setMaximumSize(QtCore.QSize(14, 14))
+        self.setFlat(True)
 
 
 class MenuFieldMode(object):
