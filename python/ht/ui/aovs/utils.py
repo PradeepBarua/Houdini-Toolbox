@@ -187,23 +187,6 @@ def buildAOVsFromMultiparm(node):
     return aovs
 
 
-def displayHelp(name):
-    """Display help for the AOV Viewer."""
-    browser = None
-
-    for pane_tab in hou.ui.paneTabs():
-        if isinstance(pane_tab, hou.HelpBrowser):
-            if pane_tab.isFloating():
-                browser = pane_tab
-                break
-
-    if browser is None:
-        desktop = hou.ui.curDesktop()
-        browser = desktop.createFloatingPaneTab(hou.paneTabType.HelpBrowser)
-
-    browser.displayHelpPath(os.path.join("aov_manager", name))
-
-
 def filePathIsValid(path):
     """Check if a file path is valid."""
     if path:

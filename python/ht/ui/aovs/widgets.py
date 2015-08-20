@@ -65,8 +65,6 @@ class AOVManagerWidget(QtGui.QWidget):
             self.select_widget.markItemsUninstalled
         )
 
-        self.to_add_widget.displayHelpSignal.connect(self.displayHelp)
-
         self.setStyleSheet(uidata.TOOLTIP_STYLE)
 
     # =========================================================================
@@ -110,10 +108,6 @@ class AOVManagerWidget(QtGui.QWidget):
         else:
             self.invalidAOVSelectedSignal.emit()
 
-    def displayHelp(self):
-        """Display help for the AOV Viewer."""
-        utils.displayHelp("aov_manager")
-
     def initUI(self):
         """Initliaze the UI."""
         layout = QtGui.QVBoxLayout()
@@ -145,7 +139,7 @@ class AOVViewerToolBar(QtGui.QToolBar):
     def __init__(self, parent=None):
         super(AOVViewerToolBar, self).__init__(parent)
 
-        self.setStyleSheet("QToolBar {border: 0;}")
+        self.setStyleSheet(uidata.AOVVIEWERTOOLBAR_STYLE)
         self.setIconSize(QtCore.QSize(24, 24))
 
 # =============================================================================
@@ -1379,7 +1373,6 @@ class AOVsToAddToolBar(AOVViewerToolBar):
 class AOVsToAddWidget(QtGui.QWidget):
     """This class represents the 'AOVs to Apply' widget."""
 
-    displayHelpSignal = QtCore.Signal()
     updateEnabledSignal = QtCore.Signal()
 
     # =========================================================================
@@ -1411,11 +1404,7 @@ class AOVsToAddWidget(QtGui.QWidget):
 
         # =====================================================================
 
-        help_button = HelpButton()
-
-        top_layout.addWidget(help_button)
-
-        help_button.clicked.connect(self.displayHelpSignal.emit)
+        top_layout.addWidget(HelpButton("aov_manager"))
 
         # =====================================================================
 
@@ -1651,49 +1640,7 @@ class CustomSpinBox(QtGui.QSpinBox):
     def __init__(self, parent=None):
         super(CustomSpinBox, self).__init__(parent)
 
-        self.setStyleSheet(
-"""
-QSpinBox {
-    border: 1px solid rgba(0,0,0,102);
-    border-radius: 1px;
-    background: rgb(19, 19, 19);
-    selection-color: rgb(0, 0, 0);
-    selection-background-color: rgb(184, 134, 32);
-}
-
-QSpinBox::up-button {
-    subcontrol-origin: border;
-    subcontrol-position: top right; /* position at the top right corner */
-    width: 16px;
-    border-width: 1px;
-    background: rgb(38, 38, 38);
-    width: 20px;
-}
-
-QSpinBox::down-button {
-    subcontrol-origin: border;
-    subcontrol-position: bottom right; /* position at bottom right corner */
-    border-image: url(:/images/spindown.png) 1;
-    border-width: 1px;
-    border-top-width: 0;
-    background: rgb(38, 38, 38);
-    width: 20px;
- }
-
-QSpinBox::up-arrow {
-    image: url(:ht/rsc/icons/aovs/button_up.png) 1;
-    width: 14px;
-    height: 14px;
-}
-
-QSpinBox::down-arrow
-{
-    image: url(:ht/rsc/icons/aovs/button_down.png) 1;
-    width: 14px;
-    height: 14px;
-}
-"""
-)
+        self.setStyleSheet(uidata.SPINBOX_STYLE)
 
 
 class FileChooser(QtGui.QWidget):
@@ -1803,17 +1750,48 @@ class FilterWidget(QtGui.QWidget):
 class HelpButton(QtGui.QPushButton):
     """Generic Help button."""
 
-    def __init__(self, parent=None):
+    # =========================================================================
+    # CONSTRUCTORS
+    # =========================================================================
+
+    def __init__(self, name, parent=None):
         super(HelpButton, self).__init__(
             QtGui.QIcon(":ht/rsc/icons/aovs/help.png"),
             "",
             parent=parent
         )
 
+        self._name = name
+
         self.setToolTip("Show Help.")
         self.setIconSize(QtCore.QSize(14, 14))
         self.setMaximumSize(QtCore.QSize(14, 14))
         self.setFlat(True)
+
+        self.clicked.connect(self.displayHelp)
+
+    # =========================================================================
+    # METHODS
+    # =========================================================================
+
+    def displayHelp(self):
+        """Display help page."""
+        # Help browser pane.
+        browser = None
+
+        # Look for an existing, float help browser.
+        for pane_tab in hou.ui.paneTabs():
+            if isinstance(pane_tab, hou.HelpBrowser):
+                if pane_tab.isFloating():
+                    browser = pane_tab
+                    break
+
+        # Didn't find one, so create a new floating browser.
+        else:
+            desktop = hou.ui.curDesktop()
+            browser = desktop.createFloatingPaneTab(hou.paneTabType.HelpBrowser)
+
+        browser.displayHelpPath(os.path.join("aov_manager", self._name))
 
 
 class MenuFieldMode(object):
@@ -1871,28 +1849,7 @@ class MenuField(QtGui.QWidget):
 
         button.setMenu(menu)
 
-        button.setStyleSheet(
-"""
-QPushButton
-{
-    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                                stop: 0.0 rgb(63, 63, 63),
-                                stop: 1.0 rgb(38, 38, 38));
-
-    height: 14px;
-    width: 11px;
-    border: 1px solid rgba(0,0,0,102);
-
-}
-
-QPushButton::menu-indicator
-{
-    subcontrol-position: center;
-    height: 16;
-    width: 6;
-}
-"""
-)
+        button.setStyleSheet(uidata.MENUFIELD_STYLE)
 
     # =========================================================================
     # METHODS
