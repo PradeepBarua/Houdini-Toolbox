@@ -1639,7 +1639,7 @@ class CustomSpinBox(QtGui.QSpinBox):
     def __init__(self, parent=None):
         super(CustomSpinBox, self).__init__(parent)
 
-        self.setStyleSheet(uidata.SPINBOX_STYLE)
+        self.setStyleSheet(uidata.CUSTOMSPINBOX_STYLE)
 
 
 class FileChooser(QtGui.QWidget):
