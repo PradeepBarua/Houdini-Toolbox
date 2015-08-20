@@ -13,7 +13,6 @@ import pickle
 from ht.sohohooks.aovs import manager
 from ht.sohohooks.aovs.aov import AOV, AOVGroup
 from ht.ui.aovs import models, uidata, utils
-import ht.ui.aovs.dialogs
 
 # Houdini Imports
 import hou
@@ -35,8 +34,6 @@ class AOVManagerWidget(QtGui.QWidget):
     def __init__(self, parent=None):
         super(AOVManagerWidget, self).__init__(parent)
 
-        self._interface_name = None
-
         self.initUI()
 
         # Left/right button action signals.
@@ -55,7 +52,6 @@ class AOVManagerWidget(QtGui.QWidget):
         manager.MANAGER.initInterface()
         manager.MANAGER.interface.aovAddedSignal.connect(self.select_widget.aov_tree.insertAOV)
         manager.MANAGER.interface.groupAddedSignal.connect(self.select_widget.aov_tree.insertGroup)
-        #dialogs.AOVGroupDialog.groupUpdatedSignal.connect(self.select_widget.aov_tree.updateGroup)
 
         self.to_add_widget.tree.model().sourceModel().insertedItemsSignal.connect(
             self.select_widget.markItemsInstalled
@@ -66,19 +62,6 @@ class AOVManagerWidget(QtGui.QWidget):
         )
 
         self.setStyleSheet(uidata.TOOLTIP_STYLE)
-
-    # =========================================================================
-    # PROPERTIES
-    # =========================================================================
-
-    @property
-    def interface_name(self):
-        """Houdini interface name."""
-        return self._interface_name
-
-    @interface_name.setter
-    def interface_name(self, name):
-        self._interface_name = name
 
     # =========================================================================
     # METHODS
@@ -226,6 +209,8 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
 
     def dropEvent(self, event):
         """Event when dropping items onto widget."""
+        import ht.ui.aovs.dialogs
+
         # Get the data attached to this event.
         mime_data = event.mimeData()
 
@@ -284,6 +269,8 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
 
     def editSelectedAOVs(self):
         """Edit selected AOVs."""
+        import ht.ui.aovs.dialogs
+
         aovs = [node.item for node in self.getSelectedNodes()
                 if isinstance(node.item, AOV)]
 
@@ -292,6 +279,8 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
 
     def editSelectedGroups(self):
         """Edit selected AOVs."""
+        import ht.ui.aovs.dialogs
+
         groups = [node.item for node in self.getSelectedNodes()
                 if isinstance(node.item, AOVGroup)]
 
@@ -504,6 +493,8 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
 
     def showAOVInfo(self):
         """Show info for selected AOVs."""
+        import ht.ui.aovs.dialogs
+
         nodes = self.getSelectedNodes()
 
         filtered = [node for node in nodes
@@ -521,6 +512,8 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
 
     def showAOVGroupInfo(self):
         """Show info for selected AOVGroups."""
+        import ht.ui.aovs.dialogs
+
         nodes = self.getSelectedNodes()
 
         filtered = [node for node in nodes
@@ -661,6 +654,8 @@ class AvailableAOVsToolBar(AOVViewerToolBar):
 
     def __init__(self, parent=None):
         super(AvailableAOVsToolBar, self).__init__(parent)
+
+        import ht.ui.aovs.dialogs
 
         # Button and action to create a new AOV.
         new_aov_button = QtGui.QToolButton(self)
@@ -867,6 +862,8 @@ class AOVSelectWidget(QtGui.QWidget):
 
     def createGroup(self):
         """Create a new group using any selected AOVs."""
+        import ht.ui.aovs.dialogs
+
         aovs = [node.item for node in self.aov_tree.getSelectedNodes()
                 if isinstance(node.item, AOV)]
 
@@ -1461,6 +1458,8 @@ class AOVsToAddWidget(QtGui.QWidget):
 
     def createGroup(self):
         """Create a new AOVGroup from items in the tree."""
+        import ht.ui.aovs.dialogs
+
         aovs = utils.flattenList(self.tree.getElementsToAdd())
 
         ht.ui.aovs.dialogs.createNewGroup(aovs)
