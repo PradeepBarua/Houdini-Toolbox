@@ -51,6 +51,7 @@ class AOVManagerWidget(QtGui.QWidget):
         # Really need a signal?  Maybe just refresh everything?
         manager.MANAGER.initInterface()
         manager.MANAGER.interface.aovAddedSignal.connect(self.select_widget.aov_tree.insertAOV)
+        manager.MANAGER.interface.aovRemovedSignal.connect(self.select_widget.aov_tree.removeAOV)
         manager.MANAGER.interface.groupAddedSignal.connect(self.select_widget.aov_tree.insertGroup)
 
         self.to_add_widget.tree.model().sourceModel().insertedItemsSignal.connect(
@@ -486,6 +487,11 @@ class AOVSelectTreeWidget(QtGui.QTreeView):
         )
 
         menu.exec_(self.mapToGlobal(position))
+
+    def removeAOV(self, aov):
+        """Remove an AOV from the model."""
+        print "Removing ", aov.variable
+        self.model().sourceModel().removeAOV(aov)
 
     def selectionChangedHandler(self, selected, deselected):
         """Selection change handler."""

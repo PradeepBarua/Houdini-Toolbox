@@ -29,10 +29,12 @@ class AOVViewerInterface(QtCore.QObject):
 
     # Signals for when AOVs are created or changed.
     aovAddedSignal = QtCore.Signal(AOV)
+    aovRemovedSignal = QtCore.Signal(AOV)
     aovUpdatedSignal = QtCore.Signal(AOV)
 
     # Signals for when AOVGroups are created or changed.
     groupAddedSignal = QtCore.Signal(AOVGroup)
+    groupRemovedSignal = QtCore.Signal(AOVGroup)
     groupUpdatedSignal = QtCore.Signal(AOVGroup)
 
     def __init__(self, parent=None):

@@ -914,11 +914,39 @@ class AOVInfoDialog(QtGui.QDialog):
 
         # =====================================================================
 
+        delete_button = QtGui.QPushButton(
+            QtGui.QIcon(":ht/rsc/icons/aovs/delete.png"),
+            "Delete"
+        )
+
+        self.button_box.addButton(delete_button, QtGui.QDialogButtonBox.HelpRole)
+
+        delete_button.setToolTip("Delete this AOV.")
+        delete_button.clicked.connect(self.delete)
+
+        # =====================================================================
+
         self.table.resizeColumnToContents(0)
         self.setMinimumSize(self.table.size())
 
+    def delete(self):
+        """Delete the currently selected AOV."""
+        self.accept()
+
+        choice = hou.ui.displayMessage(
+            "Are you sure you want to delete {}?".format(self._aov.variable),
+            buttons=("Cancel", "OK"),
+            severity=hou.severityType.Warning,
+            close_choice=0,
+            help="This action cannot be undone.",
+            title="Confirm AOV Deletion"
+        )
+
+        if choice == 1:
+            manager.MANAGER.removeAOV(self._aov)
+
     def edit(self):
-        """Launch the Edit dialog for the currently selected group."""
+        """Launch the Edit dialog for the currently selected AOV."""
         # Accept the dialog so it closes.
         self.accept()
 

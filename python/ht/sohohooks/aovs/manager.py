@@ -209,6 +209,14 @@ class AOVManager(object):
         self.clear()
         self._initFromFiles()
 
+    def removeAOV(self, aov):
+        """Remove the specified AOV from the manager."""
+        if aov.variable in self._aovs:
+            self._aovs.pop(aov.variable)
+
+            if self.interface is not None:
+                self.interface.aovRemovedSignal.emit(aov)
+
 
 class AOVFileReader(object):
     """This class handles reading AOVs and AOVGroups from files."""
